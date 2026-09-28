@@ -1,7 +1,7 @@
-package com.quorum.placementservice;
+package com.quorum.placementservice.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.quorum.placementservice.Drive;
+import com.quorum.placementservice.entity.Drive;
 
 public interface DriveRepository extends JpaRepository<Drive, Long> {
 }

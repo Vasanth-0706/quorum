@@ -1,6 +1,8 @@
-package com.quorum.placementservice;
+package com.quorum.placementservice.service;
 
 
+import com.quorum.placementservice.entity.Drive;
+import com.quorum.placementservice.repository.DriveRepository;
 import org.springframework.stereotype.Service;
 
 @Service

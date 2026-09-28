@@ -1,4 +1,4 @@
-package com.quorum.placementservice;
+package com.quorum.placementservice.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

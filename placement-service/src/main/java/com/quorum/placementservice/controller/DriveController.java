@@ -1,5 +1,7 @@
-package com.quorum.placementservice;
+package com.quorum.placementservice.controller;
 
+import com.quorum.placementservice.entity.Drive;
+import com.quorum.placementservice.service.DriveService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
