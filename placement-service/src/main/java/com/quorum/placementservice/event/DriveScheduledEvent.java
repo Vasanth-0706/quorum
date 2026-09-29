@@ -4,11 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-public record DriveScheduledEvent(    Long driveId,
-        String dirveName,
+public record DriveScheduledEvent(
+        Long driveId,
+        String companyName,
         LocalDate driveDate,
         LocalTime startTime,
-        LocalDateTime endTime,
-        String venue) {
-
-}
+        LocalTime endTime,
+        String venue) {}
