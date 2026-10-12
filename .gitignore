@@ -34,3 +34,8 @@ out/
 .DS_Store
 *.log
 HELP.md
+
+# Python
+venv/
+__pycache__/
+.pytest_cache/
