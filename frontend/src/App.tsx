@@ -1,0 +1,27 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { Sidebar } from './components/Sidebar';
+import { HealthProvider } from './health';
+import { CreateDrivePage } from './pages/CreateDrivePage';
+import { DrivesPage } from './pages/DrivesPage';
+import { ImportPage } from './pages/ImportPage';
+
+export function App() {
+  return (
+    <HealthProvider>
+      <div className="app">
+        <Sidebar />
+        <main className="main">
+          <div className="container">
+            <Routes>
+              <Route path="/" element={<DrivesPage />} />
+              <Route path="/drives" element={<DrivesPage />} />
+              <Route path="/drives/new" element={<CreateDrivePage />} />
+              <Route path="/imports" element={<ImportPage />} />
+              <Route path="*" element={<Navigate to="/drives" replace />} />
+            </Routes>
+          </div>
+        </main>
+      </div>
+    </HealthProvider>
+  );
+}
