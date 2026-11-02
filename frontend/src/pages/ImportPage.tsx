@@ -31,7 +31,7 @@ const TABS: TabConfig[] = [
     numericId: true,
     accept: '.xlsx,.csv',
     extensions: ['.xlsx', '.csv'],
-    hint: 'One column of student IDs. .xlsx or .csv, up to 5 MB',
+    hint: 'One column of student IDs, .xlsx or .csv',
     targetLabel: 'Round',
   },
   {
@@ -42,7 +42,7 @@ const TABS: TabConfig[] = [
     numericId: true,
     accept: '.xlsx,.csv',
     extensions: ['.xlsx', '.csv'],
-    hint: 'Student IDs of everyone present. .xlsx or .csv, up to 5 MB',
+    hint: 'IDs of students present, .xlsx or .csv',
     targetLabel: 'Session',
   },
   {
@@ -53,7 +53,7 @@ const TABS: TabConfig[] = [
     numericId: false,
     accept: '.xlsx',
     extensions: ['.xlsx'],
-    hint: 'Sheets named slots and enrolments. .xlsx only, up to 5 MB',
+    hint: 'Sheets slots and enrolments, .xlsx only',
     targetLabel: 'Semester',
   },
 ];

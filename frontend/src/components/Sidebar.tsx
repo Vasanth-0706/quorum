@@ -76,7 +76,7 @@ export function Sidebar() {
               <span className="dot dot-ok" />
               <span>Services connected</span>
             </div>
-            <div className="service-status-sub">Drives publish to drive-events</div>
+            <div className="service-status-sub">Publishing to Kafka</div>
           </>
         ) : (
           <div className="service-status-line">
