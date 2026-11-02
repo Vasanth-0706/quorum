@@ -1,0 +1,59 @@
+// Date and time helpers. Dates stay as local YYYY-MM-DD strings so that no
+// timezone shifts a drive onto the wrong day.
+
+export const DAY_START = 8 * 60; // 08:00
+export const DAY_END = 17 * 60; // 17:00
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "09:30" or "09:30:00" to minutes after midnight; null if not a time. */
+export function toMinutes(time: string | null | undefined): number | null {
+  if (!time) return null;
+  const match = /^(\d{1,2}):(\d{2})/.exec(time);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/** "09:30:00" to "09:30". */
+export function shortTime(time: string): string {
+  return time.slice(0, 5);
+}
+
+export function todayIso(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** "2026-11-12" to "Thu, 12 Nov". */
+export function formatDriveDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  const date = new Date(y, m - 1, d);
+  return `${WEEKDAYS[date.getDay()]}, ${d} ${MONTHS[m - 1]}`;
+}
+
+/** 180 to "3 h", 150 to "2.5 h", 80 to "1 h 20 min", 45 to "45 min". */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) return `${hours} h`;
+  if (rest === 30) return `${hours}.5 h`;
+  return `${hours} h ${rest} min`;
+}
+
+export function formatClock(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
