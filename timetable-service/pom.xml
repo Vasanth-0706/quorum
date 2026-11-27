@@ -86,6 +86,20 @@
 
     <build>
         <plugins>
+            <!-- SBOM: ./mvnw -B cyclonedx:makeBom writes ../sbom/timetable-service.cdx.json (runtime dependencies).
+                 Not bound to a phase, so a normal build does not rewrite the committed file. -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>2.9.3</version>
+                <configuration>
+                    <projectType>application</projectType>
+                    <outputFormat>json</outputFormat>
+                    <outputName>timetable-service.cdx</outputName>
+                    <outputDirectory>${project.basedir}/../sbom</outputDirectory>
+                    <includeTestScope>false</includeTestScope>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
