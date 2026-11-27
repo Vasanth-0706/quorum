@@ -6,6 +6,7 @@ import { CreateDrivePage } from './pages/CreateDrivePage';
 import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
 import { ImportPage } from './pages/ImportPage';
+import { OdPage } from './pages/OdPage';
 import { SessionCheckinPage } from './pages/SessionCheckinPage';
 
 export function App() {
@@ -23,6 +24,7 @@ export function App() {
               <Route path="/imports" element={<ImportPage />} />
               <Route path="/sessions/:id" element={<SessionCheckinPage />} />
               <Route path="/clashes" element={<ClashesPage />} />
+              <Route path="/od" element={<OdPage />} />
               <Route path="*" element={<Navigate to="/drives" replace />} />
             </Routes>
           </div>
