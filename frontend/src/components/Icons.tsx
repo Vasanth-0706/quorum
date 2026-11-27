@@ -112,6 +112,63 @@ export const PlugIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ChevronRightIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9.5 6 6 6-6 6" />
+  </Icon>
+);
+
+/** Two overlapping bars: a class slot clashing with a placement window. */
+export const ClashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="6" width="11" height="5" rx="2" />
+    <rect x="9.5" y="13" width="11" height="5" rx="2" />
+    <path d="M12 11v2" />
+  </Icon>
+);
+
+export const ClipboardCheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 4.5H7.5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-12a2 2 0 0 0-2-2H15" />
+    <rect x="9" y="3" width="6" height="3.5" rx="1.2" />
+    <path d="m9 13.5 2 2 4-4" />
+  </Icon>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14.5 5.5 18.5 9.5M4.5 19.5l1-4.5L15.8 4.7a1.8 1.8 0 0 1 2.5 0l1 1a1.8 1.8 0 0 1 0 2.5L9 18.5z" />
+  </Icon>
+);
+
+/** A card reader: a box with radio waves. */
+export const ReaderIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4" y="9" width="10" height="11.5" rx="2" />
+    <path d="M7.5 16.5h3M16.5 9.5a4 4 0 0 1 0 5M19 7a7.5 7.5 0 0 1 0 10" />
+  </Icon>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+  </Icon>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" />
+  </Icon>
+);
+
+export const UserIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8.5" r="3.5" />
+    <path d="M5 19.5a7 7 0 0 1 14 0" />
+  </Icon>
+);
+
 /** Brand mark: the "Q" of Quorum drawn as a loupe. */
 export const QuorumMark = (p: IconProps) => (
   <Icon strokeWidth={2.2} {...p}>

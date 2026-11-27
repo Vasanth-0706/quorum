@@ -57,3 +57,36 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** "09:30:00", "11:00" to "09:30 – 11:00". */
+export function formatTimeRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start || !end) return '—';
+  return `${shortTime(start)} – ${shortTime(end)}`;
+}
+
+/** An ISO instant to local "27 Nov, 10:15:30"; with withDate=false only the clock. */
+export function formatInstant(iso: string | null | undefined, withDate = true): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const clock = `${formatClock(date)}:${String(date.getSeconds()).padStart(2, '0')}`;
+  return withDate ? `${date.getDate()} ${MONTHS[date.getMonth()]}, ${clock}` : clock;
+}
+
+/** "2026-12-04" to "Friday". */
+export function weekdayOf(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(y, m - 1, d).getDay()];
+}
+
+/** Whole days from the date to today; positive when the date is in the past. */
+export function daysSince(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  const then = new Date(y, m - 1, d);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today.getTime() - then.getTime()) / 86_400_000);
+}
+
+export const STUDENT_ID = /^\d{10}$/;
