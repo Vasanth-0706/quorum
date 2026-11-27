@@ -99,7 +99,7 @@ export function OdPage() {
                   type="search"
                   inputMode="numeric"
                   maxLength={10}
-                  placeholder="Filter by student ID"
+                  placeholder="10 digits"
                   value={query}
                   autoComplete="off"
                   onChange={(e) => setQuery(e.target.value.replace(/\D/g, ''))}
@@ -192,7 +192,7 @@ export function OdPage() {
 
         <div className="card-footer">
           <span>
-            {formatDriveDate(date)}, {weekdayOf(date)} · the CSV holds the granted OD of this date
+            {weekdayOf(date)} {formatDriveDate(date).split(', ')[1]} · the CSV holds the granted OD of this date
           </span>
           {state.kind === 'ready' && (
             <span>

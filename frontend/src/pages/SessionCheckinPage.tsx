@@ -135,7 +135,7 @@ export function SessionCheckinPage() {
               </h2>
               <p className="card-head-sub">Latest mark per student. Taps on the room's reader appear here by themselves.</p>
             </div>
-            <LiveIndicator stale={!!marks.refreshError} last={marks.lastLoaded} />
+            <LiveIndicator stale={marks.refreshError != null || marks.state.kind === 'error'} last={marks.lastLoaded} />
           </div>
 
           {marks.refreshError != null && (

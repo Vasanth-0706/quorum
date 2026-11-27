@@ -111,11 +111,15 @@ export function Sidebar() {
                 </span>
               </div>
               <ul className="service-status-list">
-                {down.map((s) => (
-                  <li key={s}>
-                    {down.length === 1 ? 'Start it on' : SERVICES[s].label} port {SERVICES[s].port}
-                  </li>
-                ))}
+                {down.length === 1 ? (
+                  <li>Start it on port {SERVICES[down[0]].port}</li>
+                ) : (
+                  down.map((s) => (
+                    <li key={s}>
+                      {SERVICES[s].label.replace('-service', '')} · {SERVICES[s].port}
+                    </li>
+                  ))
+                )}
               </ul>
             </>
           ) : checking ? (
