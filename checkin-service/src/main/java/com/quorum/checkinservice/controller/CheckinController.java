@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** The RFID reader endpoint. Authenticated by X-Device-Key, not by the X-User headers. */
@@ -22,10 +25,14 @@ public class CheckinController {
 
     public static final String DEVICE_KEY_HEADER = "X-Device-Key";
 
-    private final CheckinService checkins;
+    private static final DateTimeFormatter LOCAL = DateTimeFormatter.ofPattern("HH:mm 'on' yyyy-MM-dd");
 
-    public CheckinController(CheckinService checkins) {
+    private final CheckinService checkins;
+    private final Clock clock;
+
+    public CheckinController(CheckinService checkins, Clock clock) {
         this.checkins = checkins;
+        this.clock = clock;
     }
 
     @PostMapping(WebConfig.TAP_PATH)
@@ -39,11 +46,17 @@ public class CheckinController {
             case UNKNOWN_CARD -> error(HttpStatus.NOT_FOUND, o,
                     "Card " + o.cardUid() + " is not enrolled; it is listed in GET /cards/unknown-taps");
             case NO_ACTIVE_SESSION -> error(HttpStatus.CONFLICT, o,
-                    "No session is running in room " + o.device().getRoom() + " at " + o.tappedAt());
+                    "No session is running in room " + o.device().getRoom() + " at " + local(o));
             case SESSION_CANCELLED -> error(HttpStatus.CONFLICT, o,
                     "Session " + o.session().getSessionId() + " in room " + o.device().getRoom()
                             + " is cancelled and takes no new taps");
         };
+    }
+
+    /** The tap time as the local time sessions are scheduled in, e.g. "18:24 on 2026-11-27 (Asia/Kolkata)". */
+    private String local(TapOutcome o) {
+        ZonedDateTime t = o.tappedAt().atZone(clock.getZone());
+        return LOCAL.format(t) + " (" + clock.getZone().getId() + ")";
     }
 
     private static ResponseEntity<ErrorResponse> error(HttpStatus status, TapOutcome o, String message) {

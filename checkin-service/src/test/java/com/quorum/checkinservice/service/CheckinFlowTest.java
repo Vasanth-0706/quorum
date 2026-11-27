@@ -195,7 +195,10 @@ class CheckinFlowTest {
         tap(hallKey, CARD_A).andExpect(status().isOk()).andExpect(jsonPath("$.sessionId").value(41));
         // 10:16 local: session 42 is running, but in Lab 2, not in Hall A
         at("10:16");
-        tap(hallKey, CARD_B).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NO_ACTIVE_SESSION"));
+        tap(hallKey, CARD_B).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NO_ACTIVE_SESSION"))
+                // the message names the local time the sessions are scheduled in, not the UTC instant
+                .andExpect(jsonPath("$.message").value(
+                        "No session is running in room Hall A at 10:16 on 2026-12-07 (Asia/Kolkata)"));
         // 09:29 local: before session 41
         at("09:29");
         tap(hallKey, CARD_B).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NO_ACTIVE_SESSION"));
