@@ -1621,6 +1621,70 @@ select.input:disabled {
   min-width: 760px;
 }
 
+/* ---------- Readers & cards ---------- */
+.devices-table {
+  min-width: 820px;
+}
+
+.unknown-table {
+  min-width: 820px;
+}
+
+.key-reveal {
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.key-warning {
+  display: flex;
+  gap: 10px;
+  margin-bottom: var(--space-2);
+  font-size: 14px;
+  color: var(--color-warning);
+}
+
+.key-warning .icon {
+  margin-top: 2px;
+}
+
+.key-warning strong {
+  font-weight: 700;
+}
+
+.key-row {
+  display: flex;
+  gap: 12px;
+}
+
+.key-row .input {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-surface);
+}
+
+.card-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.enrol-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.enrol-inline .input {
+  width: 160px;
+}
+
+.enrol-error {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1180px) {
   .import-form {
@@ -1777,8 +1841,13 @@ select.input:disabled {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .clash-window {
+  .clash-window,
+  .card-import {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .key-row {
+    flex-direction: column;
   }
 
   .card-head {

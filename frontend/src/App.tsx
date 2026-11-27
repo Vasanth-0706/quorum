@@ -4,6 +4,7 @@ import { HealthProvider } from './health';
 import { ClashesPage } from './pages/ClashesPage';
 import { CorrectionsPage } from './pages/CorrectionsPage';
 import { CreateDrivePage } from './pages/CreateDrivePage';
+import { DevicesPage } from './pages/DevicesPage';
 import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
 import { ImportPage } from './pages/ImportPage';
@@ -27,6 +28,7 @@ export function App() {
               <Route path="/clashes" element={<ClashesPage />} />
               <Route path="/od" element={<OdPage />} />
               <Route path="/corrections" element={<CorrectionsPage />} />
+              <Route path="/devices" element={<DevicesPage />} />
               <Route path="*" element={<Navigate to="/drives" replace />} />
             </Routes>
           </div>
