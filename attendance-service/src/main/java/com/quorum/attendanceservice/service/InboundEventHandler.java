@@ -38,7 +38,7 @@ public class InboundEventHandler {
 
     public InboundEventHandler(DriveEventHandler drives, ClashResultService clashResults, MarkService marks,
                                FileAttendanceBridge fileBridge, ProcessedEventRepository processed, Clock clock,
-                               @Value("${quorum.file-attendance-bridge.enabled:true}") boolean fileBridgeEnabled) {
+                               @Value("${quorum.file-attendance-bridge.enabled:false}") boolean fileBridgeEnabled) {
         this.drives = drives;
         this.clashResults = clashResults;
         this.marks = marks;

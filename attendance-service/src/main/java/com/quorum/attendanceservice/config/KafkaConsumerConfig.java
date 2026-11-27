@@ -61,11 +61,12 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * import-events is subscribed only while the TEMPORARY file-attendance bridge is on.
-     * Turn it off (quorum.file-attendance-bridge.enabled=false) once checkin-service exists.
+     * import-events is subscribed only while the TEMPORARY file-attendance bridge is on. It is off
+     * by default (quorum.file-attendance-bridge.enabled=false): file uploads arrive from
+     * checkin-service as ATTENDANCE_MARKED with source FILE.
      */
     @Bean(INBOUND_TOPICS_BEAN)
-    public String[] inboundTopics(@Value("${quorum.file-attendance-bridge.enabled:true}") boolean fileBridge) {
+    public String[] inboundTopics(@Value("${quorum.file-attendance-bridge.enabled:false}") boolean fileBridge) {
         List<String> topics = new ArrayList<>(List.of(Topics.DRIVE_EVENTS, Topics.CLASH_EVENTS, Topics.CHECKIN_EVENTS));
         if (fileBridge) {
             topics.add(Topics.IMPORT_EVENTS);

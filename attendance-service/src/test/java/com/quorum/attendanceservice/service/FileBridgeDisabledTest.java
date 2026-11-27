@@ -12,9 +12,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** With the TEMPORARY bridge off, import-events is not subscribed and ATTENDANCE_UPLOADED does nothing. */
-@SpringBootTest(properties = {"quorum.file-attendance-bridge.enabled=false",
-        "spring.datasource.url=jdbc:h2:mem:attendance-no-bridge;MODE=MySQL;DB_CLOSE_DELAY=-1"})
+/**
+ * By default (no property set) the TEMPORARY bridge is off: import-events is not subscribed and
+ * ATTENDANCE_UPLOADED does nothing, because checkin-service sends file uploads as ATTENDANCE_MARKED.
+ */
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:attendance-no-bridge;MODE=MySQL;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("test")
 class FileBridgeDisabledTest {
 

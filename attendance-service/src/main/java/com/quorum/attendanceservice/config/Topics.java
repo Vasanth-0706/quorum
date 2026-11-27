@@ -18,8 +18,8 @@ public final class Topics {
     public static final String CHECKIN_EVENTS_DLT = CHECKIN_EVENTS + DLT_SUFFIX;
 
     /**
-     * Consumed only while the TEMPORARY file-attendance bridge is on
-     * ({@code quorum.file-attendance-bridge.enabled}): ATTENDANCE_UPLOADED from import-service.
+     * Consumed only while the TEMPORARY file-attendance bridge is switched on
+     * ({@code quorum.file-attendance-bridge.enabled}, default false): ATTENDANCE_UPLOADED from import-service.
      */
     public static final String IMPORT_EVENTS = "import-events";
     public static final String IMPORT_EVENTS_DLT = IMPORT_EVENTS + DLT_SUFFIX;

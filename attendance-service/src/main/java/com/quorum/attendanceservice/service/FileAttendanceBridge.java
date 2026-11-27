@@ -14,11 +14,12 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * TEMPORARY, until checkin-service exists: import-events ATTENDANCE_UPLOADED is applied here
- * directly. Every listed student counts as present (source FILE) in that session; students not
- * listed are left as they are. Switch it off with {@code quorum.file-attendance-bridge.enabled=false}
- * (import-events is then not even subscribed). Once checkin-service exists it turns file uploads
- * into ATTENDANCE_MARKED events with source FILE, and this class can be deleted.
+ * TEMPORARY fallback, OFF by default: with {@code quorum.file-attendance-bridge.enabled=true},
+ * import-events ATTENDANCE_UPLOADED is applied here directly. Every listed student counts as
+ * present (source FILE) in that session; students not listed are left as they are. Normally
+ * checkin-service turns file uploads into ATTENDANCE_MARKED events with source FILE and this class
+ * is not used (import-events is then not even subscribed). It can be deleted once nobody runs
+ * attendance-service without checkin-service.
  *
  * <p>markId = {@code FILE-<uploadId>-<studentId>}, so replaying the upload stores nothing twice.
  * markedAt is the time the event is applied, because uploadedAt carries no offset.
