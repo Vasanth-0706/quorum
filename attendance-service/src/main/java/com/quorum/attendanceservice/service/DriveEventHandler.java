@@ -64,6 +64,8 @@ public class DriveEventHandler {
         // DRIVE_SCHEDULED and ROUND_CREATED carry nothing this service stores yet.
 
         processed.save(new ProcessedEvent(eventId, eventType, clock.instant()));
+        log.info("Applied {} {}{}", eventType, eventId,
+                event.has("sessionId") ? " for session " + event.get("sessionId").asString() : "");
         return Outcome.APPLIED;
     }
 
