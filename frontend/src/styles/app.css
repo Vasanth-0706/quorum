@@ -149,8 +149,15 @@ input {
   font-weight: 600;
 }
 
-.service-status {
+.sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.service-status {
   padding: 12px;
   border-radius: 10px;
   background: var(--color-sidebar-active);
@@ -169,6 +176,106 @@ input {
   margin-top: 2px;
   padding-left: 16px;
   font-size: 12px;
+  color: var(--color-sidebar-muted);
+}
+
+.service-status-list {
+  margin: 2px 0 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+  font-size: 12px;
+  color: var(--color-sidebar-muted);
+}
+
+/* TEMPORARY sign-in (until proper login) */
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed #3a3e47;
+}
+
+.signin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.signin-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.signin-temp {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.signin-roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: var(--control-height);
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--color-sidebar-active);
+}
+
+.signin-roles button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-sidebar-text);
+  cursor: pointer;
+}
+
+.signin-roles button:hover {
+  color: #fff;
+}
+
+.signin-roles button[aria-checked='true'] {
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.signin-input {
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid #3a3e47;
+  border-radius: var(--radius-control);
+  background: var(--color-sidebar);
+  color: #fff;
+  font-size: 14px;
+}
+
+.signin-input::placeholder {
+  color: var(--color-sidebar-muted);
+}
+
+.signin-input:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.signin-input[aria-invalid='true'] {
+  border-color: #e5484d;
+}
+
+.signin-note {
+  font-size: 11.5px;
+  line-height: 1.4;
   color: var(--color-sidebar-muted);
 }
 
@@ -1064,10 +1171,53 @@ input {
     white-space: nowrap;
   }
 
-  .service-status {
+  .sidebar {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    row-gap: 8px;
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .sidebar-foot {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
     margin: 0 0 0 auto;
+    padding: 0;
+  }
+
+  .service-status {
     padding: 8px 10px;
     background: transparent;
+  }
+
+  .service-status-list {
+    display: none;
+  }
+
+  .signin {
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    border: 0;
+  }
+
+  .signin-title,
+  .signin-note {
+    display: none;
+  }
+
+  .signin-roles {
+    width: 190px;
+  }
+
+  .signin-input {
+    width: 130px;
   }
 
   .service-status-line {
