@@ -1476,6 +1476,36 @@ select.input:disabled {
   min-width: 900px;
 }
 
+/* ---------- Session check-in ---------- */
+.checkin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.checkin-layout > .card + aside,
+.checkin-layout aside .card + .card {
+  margin-top: 0;
+}
+
+.checkin-layout aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.marks-table {
+  min-width: 700px;
+}
+
+.manual-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: var(--space-2);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1180px) {
   .import-form {
@@ -1489,6 +1519,10 @@ select.input:disabled {
 }
 
 @media (max-width: 1080px) {
+  .checkin-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .create-layout {
     grid-template-columns: minmax(0, 1fr);
   }

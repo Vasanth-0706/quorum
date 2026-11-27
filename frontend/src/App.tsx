@@ -5,6 +5,7 @@ import { CreateDrivePage } from './pages/CreateDrivePage';
 import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
 import { ImportPage } from './pages/ImportPage';
+import { SessionCheckinPage } from './pages/SessionCheckinPage';
 
 export function App() {
   return (
@@ -19,6 +20,7 @@ export function App() {
               <Route path="/drives/new" element={<CreateDrivePage />} />
               <Route path="/drives/:id" element={<DriveDetailPage />} />
               <Route path="/imports" element={<ImportPage />} />
+              <Route path="/sessions/:id" element={<SessionCheckinPage />} />
               <Route path="*" element={<Navigate to="/drives" replace />} />
             </Routes>
           </div>
