@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -23,6 +24,8 @@ import java.util.function.Function;
  * Applies one drive-events message. Idempotent twice over: eventIds already in
  * processed_event are skipped, and session_view is upserted by sessionId.
  * Unknown fields are ignored; schemaVersion and occurredAt are optional.
+ * A session change recomputes the OD of its round on its date (and on its old date if it moved),
+ * because the earliest session start of the round that day may have changed.
  */
 @Service
 public class DriveEventHandler {
@@ -34,11 +37,14 @@ public class DriveEventHandler {
 
     private final SessionViewRepository sessions;
     private final ProcessedEventRepository processed;
+    private final OdService od;
     private final Clock clock;
 
-    public DriveEventHandler(SessionViewRepository sessions, ProcessedEventRepository processed, Clock clock) {
+    public DriveEventHandler(SessionViewRepository sessions, ProcessedEventRepository processed, OdService od,
+                             Clock clock) {
         this.sessions = sessions;
         this.processed = processed;
+        this.od = od;
         this.clock = clock;
     }
 
@@ -76,6 +82,8 @@ public class DriveEventHandler {
             v.setSessionId(sessionId);
             return v;
         });
+        Long oldRound = view.getRoundId();
+        LocalDate oldDate = view.getDate();
         view.setRoundId(id(e, "roundId"));
         view.setDriveId(id(e, "driveId"));
         view.setDate(parse(e, "date", LocalDate::parse));
@@ -85,7 +93,12 @@ public class DriveEventHandler {
         view.setStatus(status(eventType, e));
         view.setLastEventId(eventId);
         view.setUpdatedAt(clock.instant());
-        sessions.save(view);
+        sessions.saveAndFlush(view);
+
+        od.recomputeRoundDate(view.getRoundId(), view.getDate(), Set.of());
+        if (oldRound != null && (!oldRound.equals(view.getRoundId()) || !Objects.equals(oldDate, view.getDate()))) {
+            od.recomputeRoundDate(oldRound, oldDate, Set.of());
+        }
     }
 
     private static String status(String eventType, JsonNode e) {

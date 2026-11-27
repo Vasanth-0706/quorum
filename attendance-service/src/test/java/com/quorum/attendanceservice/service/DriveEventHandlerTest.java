@@ -1,15 +1,18 @@
 package com.quorum.attendanceservice.service;
 
-import com.quorum.attendanceservice.config.ClockConfig;
 import com.quorum.attendanceservice.entity.SessionView;
 import com.quorum.attendanceservice.event.InvalidEventException;
 import com.quorum.attendanceservice.repository.ProcessedEventRepository;
 import com.quorum.attendanceservice.repository.SessionViewRepository;
 import com.quorum.attendanceservice.service.DriveEventHandler.Outcome;
+import com.quorum.attendanceservice.TestDatabase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -19,9 +22,10 @@ import java.time.LocalTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Real repositories on H2: upsert by sessionId and de-duplication by eventId. */
-@DataJpaTest
-@Import({DriveEventHandler.class, ClockConfig.class})
+/** Real repositories on H2: upsert by sessionId and de-duplication by eventId. Each test rolls back. */
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class DriveEventHandlerTest {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -32,6 +36,11 @@ class DriveEventHandlerTest {
     SessionViewRepository sessions;
     @Autowired
     ProcessedEventRepository processed;
+
+    @BeforeEach
+    void clean(@Autowired JdbcTemplate jdbc) {
+        TestDatabase.wipe(jdbc);
+    }
 
     private static JsonNode json(String s) {
         return JSON.readTree(s);

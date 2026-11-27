@@ -30,8 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** In-JVM Kafka (no Docker): good messages land in session_view, bad ones in drive-events.DLT. */
 @SpringBootTest
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, topics = {Topics.DRIVE_EVENTS, Topics.DRIVE_EVENTS_DLT})
+@EmbeddedKafka(partitions = 1, topics = {Topics.DRIVE_EVENTS, Topics.DRIVE_EVENTS_DLT, Topics.CLASH_EVENTS,
+        Topics.CHECKIN_EVENTS, Topics.IMPORT_EVENTS})
 @TestPropertySource(properties = {
+        "spring.datasource.url=jdbc:h2:mem:attendance-kafka-drive;MODE=MySQL;DB_CLOSE_DELAY=-1",
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
         "spring.kafka.listener.auto-startup=true",
         "quorum.kafka.retry.interval-ms=10"

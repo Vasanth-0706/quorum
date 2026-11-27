@@ -19,19 +19,58 @@ import org.springframework.kafka.support.serializer.DelegatingByTypeSerializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * One bad message never blocks a partition: it is retried a few times (unless it can
- * never succeed) and then copied to {@code <topic>.DLT} with the failure in its headers.
+ * Topics this service owns or dead-letters into, which topics it listens to, and the error
+ * handling: one bad message is retried a few times (unless it can never succeed) and then
+ * copied to {@code <topic>.DLT} with the failure in its headers, so it never blocks a partition.
  */
 @Configuration
 public class KafkaConsumerConfig {
 
+    /** Bean name read by the listener's SpEL topic list. */
+    public static final String INBOUND_TOPICS_BEAN = "inboundTopics";
+
+    @Bean
+    public NewTopic odEventsTopic() {
+        return TopicBuilder.name(Topics.OD_EVENTS).partitions(3).replicas(1).build();
+    }
+
     @Bean
     public NewTopic driveEventsDltTopic() {
         return TopicBuilder.name(Topics.DRIVE_EVENTS_DLT).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic clashEventsDltTopic() {
+        return TopicBuilder.name(Topics.CLASH_EVENTS_DLT).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic checkinEventsDltTopic() {
+        return TopicBuilder.name(Topics.CHECKIN_EVENTS_DLT).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic importEventsDltTopic() {
+        return TopicBuilder.name(Topics.IMPORT_EVENTS_DLT).partitions(3).replicas(1).build();
+    }
+
+    /**
+     * import-events is subscribed only while the TEMPORARY file-attendance bridge is on.
+     * Turn it off (quorum.file-attendance-bridge.enabled=false) once checkin-service exists.
+     */
+    @Bean(INBOUND_TOPICS_BEAN)
+    public String[] inboundTopics(@Value("${quorum.file-attendance-bridge.enabled:true}") boolean fileBridge) {
+        List<String> topics = new ArrayList<>(List.of(Topics.DRIVE_EVENTS, Topics.CLASH_EVENTS, Topics.CHECKIN_EVENTS));
+        if (fileBridge) {
+            topics.add(Topics.IMPORT_EVENTS);
+        }
+        return topics.toArray(String[]::new);
     }
 
     @Bean
