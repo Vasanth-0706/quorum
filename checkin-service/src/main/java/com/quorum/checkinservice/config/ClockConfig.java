@@ -8,7 +8,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 
 /**
- * The one clock every service reads. Its zone (quorum.time-zone, default UTC) is the zone in which
+ * The one clock every service reads. Its zone (quorum.time-zone, default Asia/Kolkata) is the zone in which
  * session dates and times are read, so a tap Instant is matched to the right local date and time.
  * Stored Instants are always UTC.
  * Tests replace it with a fixed or mutable clock.
@@ -17,7 +17,7 @@ import java.time.ZoneId;
 public class ClockConfig {
 
     @Bean
-    public Clock clock(@Value("${quorum.time-zone:UTC}") String zone) {
+    public Clock clock(@Value("${quorum.time-zone:Asia/Kolkata}") String zone) {
         return Clock.system(ZoneId.of(zone));
     }
 }
