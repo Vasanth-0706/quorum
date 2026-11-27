@@ -47,3 +47,6 @@ frontend/dist/
 # Design reference files (local only)
 /Quorum — Placement console.html
 /Quorum — Placement console.pdf
+
+# Reader firmware secrets (Wi-Fi password, device key)
+hardware/**/secrets.h

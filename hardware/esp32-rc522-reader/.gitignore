@@ -1,0 +1,3 @@
+# Real Wi-Fi password and device key: never commit. Copy secrets.example.h to secrets.h.
+secrets.h
+build/
