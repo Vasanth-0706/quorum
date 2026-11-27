@@ -1,7 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { SERVICES, type ServiceName } from '../api';
-import { CalendarIcon, PlusIcon, QuorumMark, UploadIcon } from './Icons';
+import {
+  CalendarIcon,
+  ClashIcon,
+  ClipboardCheckIcon,
+  PencilIcon,
+  PlusIcon,
+  QuorumMark,
+  ReaderIcon,
+  UploadIcon,
+} from './Icons';
 import { SignInPanel } from './SignInPanel';
 import { useHealth } from '../health';
 
@@ -30,6 +39,30 @@ const NAV: NavItem[] = [
     label: 'Excel import',
     icon: <UploadIcon />,
     isActive: (path) => path.startsWith('/imports'),
+  },
+  {
+    to: '/clashes',
+    label: 'Clashes',
+    icon: <ClashIcon />,
+    isActive: (path) => path.startsWith('/clashes'),
+  },
+  {
+    to: '/od',
+    label: 'OD records',
+    icon: <ClipboardCheckIcon />,
+    isActive: (path) => path.startsWith('/od'),
+  },
+  {
+    to: '/corrections',
+    label: 'Corrections',
+    icon: <PencilIcon />,
+    isActive: (path) => path.startsWith('/corrections'),
+  },
+  {
+    to: '/devices',
+    label: 'Readers & cards',
+    icon: <ReaderIcon />,
+    isActive: (path) => path.startsWith('/devices'),
   },
 ];
 
