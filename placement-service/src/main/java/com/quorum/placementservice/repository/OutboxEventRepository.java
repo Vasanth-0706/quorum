@@ -12,4 +12,6 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
     List<OutboxEvent> findByPublishedAtIsNullOrderByIdAsc(Limit limit);
 
     long countByPublishedAtIsNull();
+
+    List<OutboxEvent> findAllByOrderByIdDesc(Limit limit);
 }

@@ -113,6 +113,13 @@ class PlacementFlowIntegrationTest {
             assertThat(p.get("occurredAt").asString()).endsWith("Z");
             assertThat(p.get("driveId").asLong()).isEqualTo(driveId);
         });
+        mvc.perform(get("/outbox?limit=3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pending").value(7))
+                .andExpect(jsonPath("$.latest.length()").value(3))
+                .andExpect(jsonPath("$.latest[0].eventType").value("SESSION_CANCELLED"))
+                .andExpect(jsonPath("$.latest[0].publishedAt").value(org.hamcrest.Matchers.nullValue()));
+
         JsonNode cancelled = json.readTree(rows.get(6).getPayload());
         assertThat(cancelled.get("sessionId").asLong()).isEqualTo(s2);
         assertThat(cancelled.get("status").asString()).isEqualTo("CANCELLED");
