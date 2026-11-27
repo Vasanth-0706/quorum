@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { HealthProvider } from './health';
 import { CreateDrivePage } from './pages/CreateDrivePage';
+import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
 import { ImportPage } from './pages/ImportPage';
 
@@ -16,6 +17,7 @@ export function App() {
               <Route path="/" element={<DrivesPage />} />
               <Route path="/drives" element={<DrivesPage />} />
               <Route path="/drives/new" element={<CreateDrivePage />} />
+              <Route path="/drives/:id" element={<DriveDetailPage />} />
               <Route path="/imports" element={<ImportPage />} />
               <Route path="*" element={<Navigate to="/drives" replace />} />
             </Routes>

@@ -191,10 +191,20 @@ export function DrivesPage() {
                   {load.kind === 'loading'
                     ? [0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)
                     : visible.map((drive) => (
-                        <tr key={drive.id} className={drive.id === highlightId ? 'row-new' : undefined}>
+                        <tr
+                          key={drive.id}
+                          className={drive.id === highlightId ? 'row-new row-link' : 'row-link'}
+                          onClick={(e) => {
+                            // The company link handles its own click; a click anywhere else on the row opens it too.
+                            if ((e.target as HTMLElement).closest('a')) return;
+                            navigate(`/drives/${drive.id}`);
+                          }}
+                        >
                           <td className="cell-id">#{drive.id}</td>
                           <td className="cell-strong cell-truncate" title={drive.companyName}>
-                            {drive.companyName}
+                            <Link to={`/drives/${drive.id}`} className="cell-link">
+                              {drive.companyName}
+                            </Link>
                           </td>
                           <td>{formatDriveDate(drive.driveDate)}</td>
                           <td>
