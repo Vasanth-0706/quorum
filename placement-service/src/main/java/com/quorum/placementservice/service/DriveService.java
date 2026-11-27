@@ -4,8 +4,11 @@ package com.quorum.placementservice.service;
 import com.quorum.placementservice.entity.Drive;
 import com.quorum.placementservice.event.DriveScheduledEvent;
 import com.quorum.placementservice.repository.DriveRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class DriveService {
@@ -36,5 +39,9 @@ public class DriveService {
         kafkaTemplate.send(TOPIC, String.valueOf(saved.getId()), event);
         return saved;
 
+    }
+
+    public List<Drive> findAll() {
+        return driveRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
     }
 }

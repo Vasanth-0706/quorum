@@ -1,0 +1,69 @@
+/* Design tokens for the Quorum console. Every colour, size and radius used in
+   the app comes from here. */
+:root {
+  /* Surfaces and lines */
+  --color-page: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-border: #e2e4e9;
+  --color-divider: #eceef1;
+  --color-input-border: #d5d8df;
+  --color-track: #e7e9ed;
+  --color-skeleton: #eef0f3;
+
+  /* Text */
+  --color-text: #16181d;
+  --color-text-secondary: #5b6170;
+  --color-text-body: #3a3f4b;
+
+  /* Accent: KL University maroon */
+  --color-accent: #8a1c2b;
+  --color-accent-hover: #6e1522;
+  --color-accent-tint: #f3e6e8;
+
+  /* Status */
+  --color-success: #1e7b4c;
+  --color-success-bg: #e7f4ec;
+  --color-warning: #9a5b00;
+  --color-warning-bg: #fdf1dc;
+  --color-error: #b42318;
+  --color-error-bg: #fdecea;
+
+  /* Sidebar */
+  --color-sidebar: #1b1d22;
+  --color-sidebar-active: #2a2d34;
+  --color-sidebar-text: #c9cbd2;
+  --color-sidebar-muted: #a3a7b2;
+
+  /* Type */
+  --font-sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --text-page-title: 30px;
+  --text-section-title: 15px;
+  --text-body: 14.5px;
+  --text-body-lg: 15px;
+  --text-label: 13.5px;
+  --text-helper: 12.5px;
+  --line-height: 1.5;
+
+  /* Spacing (8px grid) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+
+  /* Radius */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-nav: 8px;
+  --radius-pill: 999px;
+
+  /* Sizes */
+  --control-height: 44px;
+  --sidebar-width: 232px;
+  --content-max: 1120px;
+
+  /* Focus */
+  --focus-ring: 2px solid var(--color-accent);
+  --focus-offset: 2px;
+}
