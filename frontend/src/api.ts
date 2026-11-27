@@ -110,10 +110,17 @@ export async function listDrives(signal?: AbortSignal): Promise<Drive[]> {
   return body as Drive[];
 }
 
+// TEMPORARY auth until proper login: placement-service rejects writes without
+// these headers (401/403). Override with VITE_USER_ID / VITE_USER_ROLE.
+const TEMP_AUTH_HEADERS: Record<string, string> = {
+  'X-User-Id': import.meta.env.VITE_USER_ID ?? 'coordinator-demo',
+  'X-User-Role': import.meta.env.VITE_USER_ROLE ?? 'COORDINATOR',
+};
+
 export async function createDrive(drive: NewDrive): Promise<Drive> {
   const res = await send(`${PLACEMENT}/drives`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...TEMP_AUTH_HEADERS },
     body: JSON.stringify(drive),
   });
   const body = await readJson(res);
