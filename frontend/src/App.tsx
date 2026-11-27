@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { HealthProvider } from './health';
+import { ClashesPage } from './pages/ClashesPage';
 import { CreateDrivePage } from './pages/CreateDrivePage';
 import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
@@ -21,6 +22,7 @@ export function App() {
               <Route path="/drives/:id" element={<DriveDetailPage />} />
               <Route path="/imports" element={<ImportPage />} />
               <Route path="/sessions/:id" element={<SessionCheckinPage />} />
+              <Route path="/clashes" element={<ClashesPage />} />
               <Route path="*" element={<Navigate to="/drives" replace />} />
             </Routes>
           </div>
