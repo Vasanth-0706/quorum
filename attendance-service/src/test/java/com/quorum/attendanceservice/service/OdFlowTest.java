@@ -54,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * (S14 is in the clash list only to test the edge: it touches the OD window and gets nothing).
  * Student B clashes with S12.
  */
-@SpringBootTest
+@SpringBootTest(properties = "quorum.file-attendance-bridge.enabled=true") // also covers the opt-in bridge
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(MutableClock.Config.class)

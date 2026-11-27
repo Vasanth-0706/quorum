@@ -27,7 +27,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * In-JVM Kafka (no Docker): sessions, clashes and an attendance upload in, OD_GRANTED out on
+ * In-JVM Kafka (no Docker): sessions, clashes and checkin-service marks in, OD_GRANTED out on
  * od-events through the outbox relay, and bad messages to their topic's DLT without blocking it.
  */
 @SpringBootTest
@@ -84,9 +84,21 @@ class OdKafkaEndToEndTest {
                      "roundId":7,"date":"2026-12-07","windowStart":"09:30:00","windowEnd":"10:15:00","semester":"2026-ODD",
                      "clashes":[{"studentId":"9900000001","sectionCode":"S12","courseName":"Cloud Native",
                                  "dayOfWeek":"MONDAY","slotStart":"10:00:00","slotEnd":"10:50:00","room":"C-301"}]}""")).get();
-            p.send(new ProducerRecord<>(Topics.IMPORT_EVENTS, "41", """
-                    {"eventId":"a-1","eventType":"ATTENDANCE_UPLOADED","uploadId":"u-1","sessionId":41,
-                     "studentIds":["9900000001","9900000002"],"uploadedAt":"2026-12-07T11:48:00"}""")).get();
+            // a file upload as checkin-service publishes it, then the same mark again under a new
+            // eventId (e.g. its outbox resent it): stored once, so OD is granted once
+            for (String eventId : List.of("m-1", "m-1-again")) {
+                p.send(new ProducerRecord<>(Topics.CHECKIN_EVENTS, "41", """
+                        {"eventId":"%s","eventType":"ATTENDANCE_MARKED","schemaVersion":1,
+                         "occurredAt":"2026-12-07T06:18:00.000Z","sessionId":41,"roundId":7,"studentId":"9900000001",
+                         "present":true,"source":"FILE","markedBy":"import-service",
+                         "markedAt":"2026-12-07T06:18:00.000Z","markId":"6f1c1f0e-3f7c-3b8e-9a52-6a1d1c1a0001"}"""
+                        .formatted(eventId))).get();
+            }
+            p.send(new ProducerRecord<>(Topics.CHECKIN_EVENTS, "41", """
+                    {"eventId":"m-2","eventType":"ATTENDANCE_MARKED","schemaVersion":1,
+                     "occurredAt":"2026-12-07T06:18:00.000Z","sessionId":41,"roundId":7,"studentId":"9900000002",
+                     "present":true,"source":"RFID","markedBy":"R-HALL","markedAt":"2026-12-07T04:05:00.000Z",
+                     "markId":"6f1c1f0e-3f7c-3b8e-9a52-6a1d1c1a0002"}""")).get();
         }
 
         List<ConsumerRecord<String, String>> od = read(Topics.OD_EVENTS, 1);

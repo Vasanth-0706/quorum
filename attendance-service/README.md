@@ -1,8 +1,8 @@
 # attendance-service
 
 Decides On-Duty (OD) attendance. It keeps local copies of the placement sessions (`drive-events`),
-the clash lists computed by timetable-service (`clash-events`) and the attendance marks
-(`checkin-events`, plus for now `import-events` file uploads), and turns them into OD records for
+the clash lists computed by timetable-service (`clash-events`) and the attendance marks from
+checkin-service (`checkin-events`: RFID taps, manual marks and file uploads), and turns them into OD records for
 the class slots a student missed. Every grant and revoke is published to `od-events`.
 No faculty in the loop: Quorum decides OD directly. The service never calls another service.
 
@@ -11,9 +11,9 @@ No faculty in the loop: Quorum decides OD directly. The service never calls anot
 | Port | 8082 |
 | Stack | Java 17, Spring Boot 4.1.1, Spring Data JPA, spring-kafka, Bean Validation |
 | Database | MySQL `quorum_attendance` (created on first start, tables by Hibernate `ddl-auto=update`) |
-| Consumes | `drive-events`, `clash-events`, `checkin-events`, `import-events` (TEMPORARY, see below); consumer group `attendance-service` |
+| Consumes | `drive-events`, `clash-events`, `checkin-events`; `import-events` only if the TEMPORARY file bridge is switched on (off by default); consumer group `attendance-service` |
 | Produces | `od-events` (OD_GRANTED / OD_REVOKED, key = studentId) through a transactional outbox |
-| Dead letters | `drive-events.DLT`, `clash-events.DLT`, `checkin-events.DLT`, `import-events.DLT` |
+| Dead letters | `drive-events.DLT`, `clash-events.DLT`, `checkin-events.DLT` (and `import-events.DLT` with the bridge on) |
 
 ## Setup
 
@@ -34,7 +34,7 @@ Optional (in `application.properties`):
 
 | Property | Default | |
 |---|---|---|
-| `quorum.file-attendance-bridge.enabled` | `true` | TEMPORARY import-events path, see below |
+| `quorum.file-attendance-bridge.enabled` | `false` | TEMPORARY direct import-events path, see below. Leave off when checkin-service runs |
 | `quorum.time-zone` | `UTC` | decides "today" for the 14-day correction rule (e.g. `Asia/Kolkata`) |
 | `quorum.outbox.relay-interval` / `send-timeout` / `batch-size` | `500ms` / `10s` / `100` | |
 | `quorum.kafka.retry.interval-ms` / `attempts` | `1000` / `2` | retries before a message goes to the DLT |
@@ -49,9 +49,10 @@ Optional (in `application.properties`):
 | Test | Covers |
 |---|---|
 | `OdCalculatorTest` | the pure decision: overlap only, absent, touching edges, waiting time, cancelled sessions, two rounds on one slot, revoke reasons |
-| `OdFlowTest` | the whole service on H2: no clash result, empty replacement, changed clash list, cancelled and moved sessions, corrections (day 14 / day 15 / director day 30), replaying every event, read API and CSV |
-| `OdKafkaEndToEndTest` | embedded Kafka: events in, OD_GRANTED out, bad messages to `clash-events.DLT` / `checkin-events.DLT` |
-| `FileBridgeDisabledTest` | with the bridge off, import-events is neither subscribed nor applied |
+| `OdFlowTest` | the whole service on H2 (with the opt-in file bridge on): no clash result, empty replacement, changed clash list, cancelled and moved sessions, corrections (day 14 / day 15 / director day 30), replaying every event, read API and CSV |
+| `OdKafkaEndToEndTest` | embedded Kafka: sessions, clashes and checkin-service marks (a FILE mark delivered twice) in, one OD_GRANTED out, bad messages to `clash-events.DLT` / `checkin-events.DLT` |
+| `CheckinHandoverTest` | default settings: a FILE mark from checkin-events grants OD; the same markId under a new eventId is stored once; RFID + FILE for one student give one OD |
+| `FileBridgeDisabledTest` | by default import-events is neither subscribed nor applied |
 | `DriveEventHandlerTest`, `DriveEventsKafkaTest`, `OutboxRelayTest` | session_view, drive-events DLT, relay ordering |
 
 ## Temporary auth (TEMPORARY, until proper login)
@@ -176,23 +177,36 @@ a redelivery changes nothing.
 | drive-events `DRIVE_SCHEDULED`, `ROUND_CREATED` | recorded as processed; nothing stored |
 | clash-events `CLASHES_COMPUTED` | REPLACE the clash list of roundId + date (`clash_entry`, header in `clash_result`), recompute. An empty list or `windowStart`/`windowEnd` = null means no clashes. |
 | checkin-events `ATTENDANCE_MARKED` | append a mark (`markId` unique, a repeated markId is skipped), recompute. `source` must be RFID, MANUAL or FILE; `markedAt` ISO-8601 (no offset = UTC). |
-| import-events `ATTENDANCE_UPLOADED` | TEMPORARY bridge, below |
+| import-events `ATTENDANCE_UPLOADED` | only with the TEMPORARY bridge on (off by default), below |
 
 **Latest mark wins** = the mark that arrived last (highest `version` per session + student), not
 the largest `markedAt`: the sources do not share a clock, and import-service's `uploadedAt` has no
 offset. checkin-events is keyed by sessionId, so marks of one session arrive in order.
 
-### TEMPORARY: file attendance bridge
+### File uploads come from checkin-service (TEMPORARY bridge off by default)
 
-checkin-service is not built yet, so `FileAttendanceBridge` applies import-events
-`ATTENDANCE_UPLOADED` directly: every listed student counts as **present** (source `FILE`,
-`marked_by` = `import-service`, `markedAt` = when it was applied) in that session. Students not
-listed are left as they are. `markId` = `FILE-<uploadId>-<studentId>`, so the same upload is never
-stored twice. TIMETABLE_UPLOADED and SHORTLIST_UPLOADED are skipped.
+checkin-service reads import-events `ATTENDANCE_UPLOADED` and publishes one `ATTENDANCE_MARKED`
+(`source` = `FILE`, `markedBy` = `import-service`) per listed student whose latest mark is not
+already present. attendance-service therefore no longer reads import-events:
+`quorum.file-attendance-bridge.enabled` defaults to **false**.
 
-Switch it off with `quorum.file-attendance-bridge.enabled=false`: import-events is then not even
-subscribed. Once checkin-service exists and publishes file uploads as ATTENDANCE_MARKED
-(source FILE), delete `FileAttendanceBridge` and the import-events entries in `Topics` / `KafkaConsumerConfig`.
+Nothing is counted twice:
+
+- A mark is stored once per `markId` (unique column, checked before insert). A redelivery with the
+  same eventId is skipped by `processed_event`; the same mark under a new eventId (an outbox resend)
+  is skipped by markId (`CheckinHandoverTest`, `OdKafkaEndToEndTest`).
+- checkin-service's FILE markId is a name-based UUID of `FILE:<uploadId>:<studentId>`, so replaying
+  an upload there produces the same markId.
+- OD is a set of slots per student and date, recomputed from the latest marks. Two present marks
+  for the same student (an RFID tap and a FILE row) are two versions, but still one OD per slot and
+  one OD_GRANTED.
+
+The old direct path, `FileAttendanceBridge`, is still there for running attendance-service without
+checkin-service: set `quorum.file-attendance-bridge.enabled=true` and import-events is subscribed
+again, every listed student counts as present (source `FILE`, `marked_by` = `import-service`,
+`markId` = `FILE-<uploadId>-<studentId>`). **Do not switch it on while checkin-service runs**: its
+markIds differ from checkin-service's, so each uploaded student would get two mark rows (still one
+OD, but a confusing history). Delete the bridge once nobody needs that mode.
 
 ### Ordering and concurrency
 
@@ -209,8 +223,8 @@ the same student therefore never decide on each other's stale data. Run a single
   `InvalidEventException` and goes straight to the DLT. The whole message is refused; nothing of it is stored.
 - Any other failure (e.g. the database is down) is retried 2 times, 1 s apart, then sent to the DLT.
 - DLT records carry the failure in the `kafka_dlt-exception-*` headers.
-- timetable-service also reads import-events, so a malformed import-events message can appear
-  twice in `import-events.DLT` (once from each consumer group).
+- timetable-service and checkin-service also read import-events, so a malformed import-events
+  message appears in `import-events.DLT` once per consumer group that reads it.
 
 ```bash
 docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
