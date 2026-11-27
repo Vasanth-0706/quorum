@@ -17,8 +17,9 @@ attendance-service turns the marks into OD. The service never calls another serv
 
 ## Setup
 
-1. Kafka (repository root): `docker compose up -d`
-2. MySQL 8 running on `localhost:3306`.
+1. Kafka and MySQL (repository root): `docker compose up -d kafka kafka-init mysql`. The whole system
+   in containers is one command, see "Run Quorum" in the root README.
+2. MySQL 8 on `localhost:3306` (the compose one is published on `MYSQL_HOST_PORT`, default 3306).
 3. Credentials. Either export them or copy the root `.env.example` to `.env` (git-ignored).
    The service reads `.env` from its own folder or the repository root. Real environment variables win.
 
@@ -34,7 +35,7 @@ Optional (in `application.properties`):
 
 | Property | Default | |
 |---|---|---|
-| `quorum.time-zone` | `UTC` | zone in which session dates and times are read, e.g. `Asia/Kolkata`. Set it to the zone placement-service's times are in, or taps will not find their session |
+| `quorum.time-zone` (env `QUORUM_TIME_ZONE`) | `Asia/Kolkata` | zone in which session dates and times are read. Set it to the zone placement-service's times are in, or taps will not find their session |
 | `quorum.checkin.max-clock-skew` | `5m` | a reader's own `tappedAt` may be at most this far from the server time |
 | `quorum.outbox.relay-interval` / `send-timeout` / `batch-size` | `200ms` / `10s` / `100` | |
 | `quorum.kafka.retry.interval-ms` / `attempts` | `1000` / `2` | retries before a message goes to the DLT |
@@ -214,7 +215,7 @@ every 200 ms (`acks=all`, idempotence) and stops at the first failure. Delivery 
 attendance-service de-duplicates on eventId and on markId.
 
 ```bash
-docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
   --topic checkin-events --from-beginning --property print.key=true
 ```
 

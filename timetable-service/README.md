@@ -15,8 +15,9 @@ where attendance-service picks it up. The service never calls another service di
 
 ## Setup
 
-1. Kafka (repository root): `docker compose up -d`
-2. MySQL 8 on `localhost:3306`.
+1. Kafka and MySQL (repository root): `docker compose up -d kafka kafka-init mysql`. The whole system
+   in containers is one command, see "Run Quorum" in the root README.
+2. MySQL 8 on `localhost:3306` (the compose one is published on `MYSQL_HOST_PORT`, default 3306).
 3. Credentials: export them, or copy the root `.env.example` to `.env` (git-ignored). The service
    reads `.env` from its own folder or the repository root. Real environment variables win.
 
