@@ -27,10 +27,10 @@ The database itself must exist:
 CREATE DATABASE IF NOT EXISTS quorum_import;
 ```
 
-Kafka comes from the `docker-compose.yml` in the repository root:
+Kafka and MySQL come from the `docker-compose.yml` in the repository root:
 
 ```bash
-docker compose up -d
+docker compose up -d kafka kafka-init mysql   # or the whole system: docker compose up -d --build
 ```
 
 ## Configuration

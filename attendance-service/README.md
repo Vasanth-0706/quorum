@@ -17,8 +17,9 @@ No faculty in the loop: Quorum decides OD directly. The service never calls anot
 
 ## Setup
 
-1. Kafka (repository root): `docker compose up -d`
-2. MySQL 8 running on `localhost:3306`.
+1. Kafka and MySQL (repository root): `docker compose up -d kafka kafka-init mysql`. The whole system
+   in containers is one command, see "Run Quorum" in the root README.
+2. MySQL 8 on `localhost:3306` (the compose one is published on `MYSQL_HOST_PORT`, default 3306).
 3. Credentials. Either export them or copy the root `.env.example` to `.env` (git-ignored).
    The service reads `.env` from its own folder or the repository root. Real environment variables win.
 
@@ -35,7 +36,7 @@ Optional (in `application.properties`):
 | Property | Default | |
 |---|---|---|
 | `quorum.file-attendance-bridge.enabled` | `false` | TEMPORARY direct import-events path, see below. Leave off when checkin-service runs |
-| `quorum.time-zone` | `UTC` | decides "today" for the 14-day correction rule (e.g. `Asia/Kolkata`) |
+| `quorum.time-zone` (env `QUORUM_TIME_ZONE`) | `Asia/Kolkata` | decides "today" for the 14-day correction rule |
 | `quorum.outbox.relay-interval` / `send-timeout` / `batch-size` | `500ms` / `10s` / `100` | |
 | `quorum.kafka.retry.interval-ms` / `attempts` | `1000` / `2` | retries before a message goes to the DLT |
 
@@ -227,7 +228,7 @@ the same student therefore never decide on each other's stale data. Run a single
   message appears in `import-events.DLT` once per consumer group that reads it.
 
 ```bash
-docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
   --topic clash-events.DLT --from-beginning --property print.key=true --property print.headers=true
 ```
 

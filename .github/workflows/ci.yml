@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  java:
+    name: ${{ matrix.service }} (mvnw verify)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [placement-service, attendance-service, timetable-service, checkin-service]
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: ${{ matrix.service }}/pom.xml
+      # Tests use H2 and an in-JVM Kafka broker: no MySQL, Kafka or Docker needed
+      - run: ./mvnw -B verify
+
+  import-service:
+    name: import-service (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: import-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            import-service/requirements.txt
+            import-service/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      # The tests use SQLite and a fake publisher: no MySQL or Kafka needed
+      - run: pytest
+
+  frontend:
+    name: frontend (npm ci && npm run build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci && npm run build

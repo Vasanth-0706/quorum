@@ -13,8 +13,9 @@ and each round has **sessions** (date, time, room). Every change is published to
 
 ## Setup
 
-1. Kafka (repository root): `docker compose up -d`
-2. MySQL 8 running on `localhost:3306`.
+1. Kafka and MySQL (repository root): `docker compose up -d kafka kafka-init mysql`. The whole system
+   in containers is one command, see "Run Quorum" in the root README.
+2. MySQL 8 on `localhost:3306` (the compose one is published on `MYSQL_HOST_PORT`, default 3306).
 3. Credentials. Either export them or copy the root `.env.example` to `.env` (git-ignored):
 
 ```bash
@@ -38,7 +39,7 @@ The service declares `drive-events` with 3 partitions. If a consumer started fir
 auto-created it with 1 partition, that still works; to get 3, create it before starting anything:
 
 ```bash
-docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 \
+docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 \
   --create --if-not-exists --topic drive-events --partitions 3
 ```
 

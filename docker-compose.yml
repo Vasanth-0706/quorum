@@ -1,6 +1,167 @@
+# Quorum: the whole system with one command.
+#   cp .env.example .env   # then set DB_PASSWORD
+#   docker compose up -d --build
+# Services talk only through Kafka; each owns one MySQL database.
+
+x-tz: &tz
+  TZ: Asia/Kolkata
+
+x-java-env: &java-env
+  TZ: Asia/Kolkata
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_USERNAME: ${DB_USERNAME:-root}
+  DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+  KAFKA_BOOTSTRAP: kafka:29092
+
+x-java-depends: &java-depends
+  mysql:
+    condition: service_healthy
+  kafka-init:
+    condition: service_completed_successfully
+
 services:
   kafka:
     image: apache/kafka:4.0.0
-    container_name: kafka
+    environment:
+      <<: *tz
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # INTERNAL for containers on the compose network, EXTERNAL for the host (localhost:9092)
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
     ports:
       - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      start_period: 20s
+      retries: 12
+
+  # One-shot: creates every topic (3 partitions) and its dead-letter topic, then exits.
+  kafka-init:
+    image: apache/kafka:4.0.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *tz
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        for t in drive-events import-events clash-events checkin-events od-events; do
+          for name in "$$t" "$$t.DLT"; do
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists \
+              --topic "$$name" --partitions 3 --replication-factor 1
+          done
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list
+    restart: "no"
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      <<: *tz
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    ports:
+      # 3306 by default; set MYSQL_HOST_PORT in .env if a local MySQL already uses it
+      - "${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # TCP on 127.0.0.1, so it only passes once the real server (not the init one) is up
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" -e 'SELECT 1' > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+
+  placement-service:
+    build: ./placement-service
+    environment: *java-env
+    depends_on: *java-depends
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  timetable-service:
+    build: ./timetable-service
+    environment: *java-env
+    depends_on: *java-depends
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  checkin-service:
+    build: ./checkin-service
+    environment: *java-env
+    depends_on: *java-depends
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+  attendance-service:
+    build: ./attendance-service
+    environment: *java-env
+    depends_on: *java-depends
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  import-service:
+    build: ./import-service
+    environment:
+      <<: *tz
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      KAFKA_BOOTSTRAP: kafka:29092
+    depends_on: *java-depends
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/openapi.json', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      <<: *tz
+    depends_on:
+      placement-service:
+        condition: service_healthy
+      attendance-service:
+        condition: service_healthy
+      timetable-service:
+        condition: service_healthy
+      checkin-service:
+        condition: service_healthy
+      import-service:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+volumes:
+  kafka-data:
+  mysql-data:

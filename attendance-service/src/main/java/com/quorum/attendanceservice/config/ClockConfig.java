@@ -9,14 +9,14 @@ import java.time.ZoneId;
 
 /**
  * The one clock every service reads. Its zone decides what "today" is for the 14-day
- * correction rule (quorum.time-zone, default UTC); stored Instants are always UTC.
+ * correction rule (quorum.time-zone, default Asia/Kolkata); stored Instants are always UTC.
  * Tests replace it with a fixed or mutable clock.
  */
 @Configuration
 public class ClockConfig {
 
     @Bean
-    public Clock clock(@Value("${quorum.time-zone:UTC}") String zone) {
+    public Clock clock(@Value("${quorum.time-zone:Asia/Kolkata}") String zone) {
         return Clock.system(ZoneId.of(zone));
     }
 }
