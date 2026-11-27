@@ -1,6 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 /** Class names for a button look, so links can be styled as buttons too. */
 export function buttonClass(variant: ButtonVariant = 'primary', small = false): string {
@@ -15,20 +15,24 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: ReactNode;
 }
 
-export function Button({
-  variant = 'primary',
-  small = false,
-  loading = false,
-  loadingText,
-  icon,
-  children,
-  className,
-  disabled,
-  type = 'button',
-  ...rest
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = 'primary',
+    small = false,
+    loading = false,
+    loadingText,
+    icon,
+    children,
+    className,
+    disabled,
+    type = 'button',
+    ...rest
+  },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       type={type}
       className={`${buttonClass(variant, small)}${className ? ` ${className}` : ''}`}
       disabled={disabled || loading}
@@ -39,4 +43,4 @@ export function Button({
       {loading && loadingText ? loadingText : children}
     </button>
   );
-}
+});
