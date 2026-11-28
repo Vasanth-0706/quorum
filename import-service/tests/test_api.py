@@ -67,6 +67,10 @@ def test_shortlist_upload_publishes_and_saves_the_report(client, sent):
     assert event["uploadId"] == report["uploadId"]
     assert event["roundId"] == 12
     assert event["studentIds"] == ["9900000001", "9900000003"]
+    assert event["students"] == [{"studentId": "9900000001", "name": None},
+                                 {"studentId": "9900000003", "name": None}]
+    assert event["schemaVersion"] == 1
+    assert event["occurredAt"].endswith("Z")
     assert event["uploadedAt"] == report["uploadedAt"]
 
     assert client.get(f"/imports/{report['uploadId']}").json() == report
@@ -82,6 +86,78 @@ def test_attendance_upload_from_csv(client, sent):
     assert event["eventType"] == "ATTENDANCE_UPLOADED"
     assert event["sessionId"] == 7
     assert event["studentIds"] == ["9900000001", "9900000002"]
+
+
+def test_shortlist_with_a_name_column(client, sent):
+    content = xlsx({"Sheet1": [
+        ["studentId", "studentName"],
+        [9900000001, "  Tony   Stark "],
+        [9900000002, None],
+        ["99000003", "Short Id"],
+        [9900000004, "   "],
+    ]})
+    response = upload(client, "/imports/shortlist", content, "named.xlsx", roundId=3)
+
+    assert response.status_code == 200
+    report = response.json()
+    assert (report["acceptedCount"], report["rejectedCount"]) == (3, 1)
+    assert report["rejected"] == [{"row": 4, "value": "99000003", "reason": "NOT_10_DIGITS"}]
+    [(_, event)] = sent
+    assert event["studentIds"] == ["9900000001", "9900000002", "9900000004"]
+    assert event["students"] == [
+        {"studentId": "9900000001", "name": "Tony Stark"},
+        {"studentId": "9900000002", "name": None},
+        {"studentId": "9900000004", "name": None},
+    ]
+
+
+def test_shortlist_without_a_name_column_behaves_as_before(client, sent):
+    response = upload(client, "/imports/shortlist", b"studentId\n9900000001\n9900000002\n", "ids.csv",
+                      roundId=3)
+    assert response.status_code == 200
+    assert response.json()["acceptedCount"] == 2
+    [(_, event)] = sent
+    assert event["studentIds"] == ["9900000001", "9900000002"]
+    assert [s["name"] for s in event["students"]] == [None, None]
+
+
+@pytest.mark.parametrize("header", ["Student Name", "student_name", "NAME", "Full Name", "fullname"])
+def test_attendance_name_header_variants(client, sent, header):
+    csv = f"Roll No,{header}\n9900000001,Bruce Wayne\n".encode()
+    response = upload(client, "/imports/attendance", csv, "present.csv", sessionId=7)
+    assert response.status_code == 200
+    [(_, event)] = sent
+    assert event["studentIds"] == ["9900000001"]
+    assert event["students"] == [{"studentId": "9900000001", "name": "Bruce Wayne"}]
+
+
+def test_names_never_reject_a_row(client, sent):
+    csv = "studentId,name\n9900000001,\n9900000002,12345\n9900000003,Ünïcödé Nâme\n".encode()
+    response = upload(client, "/imports/shortlist", csv, "odd.csv", roundId=3)
+    assert response.status_code == 200
+    assert response.json()["rejectedCount"] == 0
+    [(_, event)] = sent
+    assert [s["name"] for s in event["students"]] == [None, "12345", "Ünïcödé Nâme"]
+
+
+def test_demo_shortlist_file_gives_18_named_students(client, sent):
+    with open("samples/demo/Quorum_Demo_Shortlist.xlsx", "rb") as f:
+        response = upload(client, "/imports/shortlist", f.read(), "Quorum_Demo_Shortlist.xlsx", roundId=1)
+    assert response.status_code == 200
+    assert (response.json()["acceptedCount"], response.json()["rejectedCount"]) == (18, 0)
+    [(_, event)] = sent
+    assert len(event["studentIds"]) == 18
+    assert all(s["name"] for s in event["students"])
+    assert event["students"][5] == {"studentId": "9900000002", "name": "Steve Rogers"}
+
+
+def test_demo_shortlist_with_errors_gives_6_accepted_4_rejected(client, sent):
+    with open("samples/demo/Quorum_Demo_Shortlist_WithErrors.xlsx", "rb") as f:
+        response = upload(client, "/imports/shortlist", f.read(), "errors.xlsx", roundId=2)
+    report = response.json()
+    assert (report["acceptedCount"], report["rejectedCount"]) == (6, 4)
+    assert [r["reason"] for r in report["rejected"]] == ["NOT_10_DIGITS", "NOT_NUMERIC", "DUPLICATE", "EMPTY"]
+    assert [r["row"] for r in report["rejected"]] == [8, 9, 10, 11]
 
 
 def test_timetable_upload(client, sent):
@@ -162,8 +238,8 @@ def test_unknown_upload_returns_404(client):
 
 
 @pytest.mark.parametrize("template, sheets", [
-    ("shortlist", {"shortlist": ["studentId"]}),
-    ("attendance", {"attendance": ["studentId"]}),
+    ("shortlist", {"shortlist": ["studentId", "studentName"]}),
+    ("attendance", {"attendance": ["studentId", "studentName"]}),
     ("timetable", {"enrolments": ["studentId", "sectionCode"],
                    "slots": ["sectionCode", "courseName", "dayOfWeek", "startTime", "endTime",
                              "room"]}),

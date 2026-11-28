@@ -108,3 +108,18 @@ def test_file_over_5_mb_is_refused():
 def test_corrupt_xlsx():
     with pytest.raises(parsing.ParseError, match="not a valid .xlsx"):
         parsing.read_rows(b"this is not a zip file", "list.xlsx")
+
+
+def test_optional_column_is_found_in_the_header_row():
+    rows = [["Title"], ["Reg No", "Student Name"], [9900000001, "Tony Stark"], [9900000002]]
+    assert parsing.extract(rows, parsing.STUDENT_ID_COLUMNS, optional=parsing.STUDENT_NAME_COLUMNS) == [
+        (3, {"studentId": 9900000001, "name": "Tony Stark"}),
+        (4, {"studentId": 9900000002, "name": None}),
+    ]
+
+
+def test_missing_optional_column_gives_none():
+    rows = [["studentId"], [9900000001]]
+    assert parsing.extract(rows, parsing.STUDENT_ID_COLUMNS, optional=parsing.STUDENT_NAME_COLUMNS) == [
+        (2, {"studentId": 9900000001, "name": None}),
+    ]

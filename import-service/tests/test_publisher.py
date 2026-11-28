@@ -1,3 +1,4 @@
+import datetime
 import json
 
 import publisher
@@ -12,24 +13,38 @@ def enrolments(count):
 
 
 def test_shortlist_event_shape():
-    event = publisher.shortlist_event("upload-1", 12, ["9900000001"], UPLOADED_AT)
-    assert list(event) == ["eventId", "eventType", "uploadId", "roundId", "studentIds", "uploadedAt"]
+    students = [{"studentId": "9900000001", "name": "Tony Stark"}, {"studentId": "9900000002", "name": None}]
+    event = publisher.shortlist_event("upload-1", 12, students, UPLOADED_AT)
+    assert list(event) == ["eventId", "eventType", "schemaVersion", "occurredAt", "uploadId", "roundId",
+                           "studentIds", "students", "uploadedAt"]
     assert event["eventType"] == "SHORTLIST_UPLOADED"
+    assert event["schemaVersion"] == 1
     assert event["roundId"] == 12
-    assert event["studentIds"] == ["9900000001"]
+    assert event["studentIds"] == ["9900000001", "9900000002"]
+    assert event["students"] == students
 
 
 def test_attendance_event_shape():
-    event = publisher.attendance_event("upload-1", 7, ["9900000001"], UPLOADED_AT)
-    assert list(event) == ["eventId", "eventType", "uploadId", "sessionId", "studentIds", "uploadedAt"]
+    event = publisher.attendance_event("upload-1", 7, [{"studentId": "9900000001", "name": None}], UPLOADED_AT)
+    assert list(event) == ["eventId", "eventType", "schemaVersion", "occurredAt", "uploadId", "sessionId",
+                           "studentIds", "students", "uploadedAt"]
     assert event["eventType"] == "ATTENDANCE_UPLOADED"
+    assert event["studentIds"] == ["9900000001"]
+    assert event["students"] == [{"studentId": "9900000001", "name": None}]
+
+
+def test_occurred_at_is_utc_with_an_offset():
+    when = datetime.datetime.fromisoformat(publisher.occurred_at().replace("Z", "+00:00"))
+    assert when.utcoffset() == datetime.timedelta(0)
+    assert publisher.occurred_at().endswith("Z")
 
 
 def test_small_timetable_is_a_single_event():
     events = publisher.timetable_events("upload-1", "2026-ODD", SLOTS, enrolments(3), UPLOADED_AT)
     assert len(events) == 1
-    assert list(events[0]) == ["eventId", "eventType", "uploadId", "semester", "part", "totalParts",
-                               "slots", "enrolments", "uploadedAt"]
+    assert list(events[0]) == ["eventId", "eventType", "schemaVersion", "occurredAt", "uploadId", "semester",
+                               "part", "totalParts", "slots", "enrolments", "uploadedAt"]
+    assert events[0]["schemaVersion"] == 1
     assert (events[0]["part"], events[0]["totalParts"]) == (1, 1)
     assert events[0]["slots"] == SLOTS
     assert events[0]["enrolments"] == enrolments(3)
@@ -50,6 +65,7 @@ def test_large_timetable_is_split_under_900_kb():
     assert [event["part"] for event in events] == [1, 2, 3, 4]
     assert all(event["totalParts"] == 4 for event in events)
     assert all(event["uploadId"] == "upload-1" for event in events)
+    assert len({event["occurredAt"] for event in events}) == 1
     assert len({event["eventId"] for event in events}) == 4
     assert events[0]["slots"] == SLOTS
     assert all(event["slots"] == [] for event in events[1:])

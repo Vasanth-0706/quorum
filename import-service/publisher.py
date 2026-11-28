@@ -3,6 +3,7 @@
 Values are plain JSON (camelCase, ISO dates) with no type headers; the Java
 consumers map them onto their own classes.
 """
+import datetime
 import json
 import logging
 import uuid
@@ -28,24 +29,50 @@ def encode(event):
     return json.dumps(event, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def shortlist_event(upload_id, round_id, student_ids, uploaded_at):
+SCHEMA_VERSION = 1
+
+
+def occurred_at():
+    """Now, ISO-8601 in UTC with its offset, e.g. 2026-11-28T06:15:02.123Z."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _student_list(students):
+    """[{studentId, name}] -> (studentIds, students) in the same order.
+
+    studentIds stays for the consumers that read only IDs; students is additive.
+    """
+    students = [{"studentId": s["studentId"], "name": s.get("name")} for s in students]
+    return [s["studentId"] for s in students], students
+
+
+def shortlist_event(upload_id, round_id, students, uploaded_at):
+    student_ids, students = _student_list(students)
     return {
         "eventId": str(uuid.uuid4()),
         "eventType": "SHORTLIST_UPLOADED",
+        "schemaVersion": SCHEMA_VERSION,
+        "occurredAt": occurred_at(),
         "uploadId": upload_id,
         "roundId": round_id,
         "studentIds": student_ids,
+        "students": students,
         "uploadedAt": uploaded_at,
     }
 
 
-def attendance_event(upload_id, session_id, student_ids, uploaded_at):
+def attendance_event(upload_id, session_id, students, uploaded_at):
+    student_ids, students = _student_list(students)
     return {
         "eventId": str(uuid.uuid4()),
         "eventType": "ATTENDANCE_UPLOADED",
+        "schemaVersion": SCHEMA_VERSION,
+        "occurredAt": occurred_at(),
         "uploadId": upload_id,
         "sessionId": session_id,
         "studentIds": student_ids,
+        "students": students,
         "uploadedAt": uploaded_at,
     }
 
@@ -56,10 +83,14 @@ def timetable_events(upload_id, semester, slots, enrolments, uploaded_at,
 
     Only the enrolments are split; the slots travel in part 1.
     """
+    when = occurred_at()
+
     def event(part, total_parts, part_slots, part_enrolments):
         return {
             "eventId": str(uuid.uuid4()),
             "eventType": "TIMETABLE_UPLOADED",
+            "schemaVersion": SCHEMA_VERSION,
+            "occurredAt": when,
             "uploadId": upload_id,
             "semester": semester,
             "part": part,
