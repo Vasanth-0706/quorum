@@ -10,7 +10,7 @@ attendance-service turns the marks into OD. The service never calls another serv
 | Port | 8084 |
 | Stack | Java 17, Spring Boot 4.1.1, Spring Data JPA, spring-kafka, Bean Validation, spring-security-crypto (BCrypt only) |
 | Database | MySQL `quorum_checkin` (created on first start, tables by Hibernate `ddl-auto=update`) |
-| Consumes | `drive-events` (sessions), `import-events` (ATTENDANCE_UPLOADED); consumer group `checkin-service` |
+| Consumes | `drive-events` (sessions), `import-events` (ATTENDANCE_UPLOADED, SHORTLIST_UPLOADED); consumer group `checkin-service` |
 | Produces | `checkin-events` (ATTENDANCE_MARKED, key = sessionId, 3 partitions) through a transactional outbox |
 | Dead letters | `drive-events.DLT`, `import-events.DLT` |
 | Reader firmware | [`hardware/esp32-rc522-reader`](../hardware/esp32-rc522-reader/README.md) |
@@ -55,6 +55,9 @@ interfaces by default. Allow port 8084 through the laptop's firewall if the read
 | `SessionMatcherTest` | pure rule: inside the session, inclusive start/end, cancelled sessions, overlapping and consecutive sessions |
 | `CardUidsTest` | UID normalisation (case, `:` `-` spaces) and 4/7/10-byte length |
 | `CheckinFlowTest` | the whole service on H2 with a clock in Asia/Kolkata: tap matching by room + local time, reader `tappedAt`, duplicate tap, tap after a manual absent, unknown card + enrolment from the unknown-tap list, no session, cancelled session keeps old marks but rejects new taps, missing/wrong/rotated/inactive device key, director-only devices, manual marks, FILE marks (already present, replay, session not known yet, cancelled), CSV import, outbox rows, 20 taps under 300 ms |
+| `AttendanceSheetMergeTest` | pure merge of roster + latest marks + names: marked, not marked, off-roster at the bottom, roster name wins, cancelled session keeps marks; name cleaning |
+| `RosterFlowTest` | on H2: SHORTLIST_UPLOADED builds the roster sorted by studentId, a new upload replaces it, a redelivered event changes nothing, old events without `students[]`, names from shortlist and attendance (newest wins, blank never clears), the sheet endpoint, cancelled session, 404, reads need no headers |
+| `RosterKafkaEndToEndTest` | embedded Kafka: the verbatim SHORTLIST_UPLOADED / ATTENDANCE_UPLOADED JSON import-service v0.2.1 produces → roster, names, FILE marks, sheet; redelivery is a no-op; a shortlist with a bad ID goes to `import-events.DLT` |
 | `CheckinKafkaEndToEndTest` | embedded Kafka: session in on drive-events → tap → ATTENDANCE_MARKED read by a consumer configured like attendance-service's and checked with its rules; upload → FILE mark; non-JSON to `import-events.DLT` |
 | `OutboxRelayTest` | relay ordering, stop at first failure, retries |
 
@@ -109,6 +112,8 @@ same card a few ms apart give MARKED and ALREADY_MARKED, never two marks. Run a 
 | POST | `/sessions/{sessionId}/marks` | COORDINATOR / DIRECTOR | 201 new mark; 200 if the latest mark already says the same (nothing stored) | 400, 401, 403, 404 `SESSION_NOT_FOUND`, 409 `SESSION_CANCELLED` |
 | GET | `/sessions/{sessionId}/marks?history=false` | | 200, latest mark per student by studentId; `history=true` every version, newest first per student | 400 |
 | GET | `/sessions?date=YYYY-MM-DD` | | 200, sessions known from drive-events (date optional) | 400 |
+| GET | `/rounds/{roundId}/roster` | | 200 `[{studentId, name}]` sorted by studentId; `[]` when no shortlist was uploaded. `name` is null when unknown | 400 |
+| GET | `/sessions/{sessionId}/attendance-sheet` | | 200, the sheet below | 400, 404 `SESSION_NOT_FOUND` (not received from drive-events yet) |
 | POST | `/cards` | COORDINATOR / DIRECTOR | 201 enrolled; 200 already enrolled to this student | 400 `INVALID_CARD_UID` / bad studentId, 401, 403, 409 `CARD_IN_USE` |
 | POST | `/cards/import` | COORDINATOR / DIRECTOR | 200 `{imported, unchanged, total}` | 400 `CSV_INVALID` with every bad line in `errors[]` (nothing stored), 401, 403 |
 | GET | `/cards?studentId=` | | 200, enrolled cards | |
@@ -136,6 +141,18 @@ same card a few ms apart give MARKED and ALREADY_MARKED, never two marks. Run a 
 // POST /sessions/41/marks   (X-User-Id, X-User-Role)
 {"studentId":"9900000001","present":false}
 
+// GET /sessions/41/attendance-sheet  →  200
+{"sessionId":41,"roundId":7,"driveId":3,"date":"2026-11-30","startTime":"09:30:00","endTime":"11:30:00",
+ "room":"C-301","status":"SCHEDULED",
+ "counts":{"present":1,"absent":1,"notMarked":1,"total":3},
+ "students":[
+  {"studentId":"9900000001","name":"Tony Stark","onShortlist":true,"status":"PRESENT","source":"FILE",
+   "markedAt":"2026-11-30T04:20:00Z","markedBy":"import-service"},
+  {"studentId":"9900000002","name":"Steve Rogers","onShortlist":true,"status":"ABSENT","source":"MANUAL",
+   "markedAt":"2026-11-30T04:25:00Z","markedBy":"coord-1"},
+  {"studentId":"9900000009","name":null,"onShortlist":false,"status":"PRESENT","source":"RFID",
+   "markedAt":"2026-11-30T04:05:00Z","markedBy":"R-C301"}]}
+
 // POST /cards/import   multipart/form-data, part "file":
 studentId,cardUid
 9900000001,04:A3:1B:2C
@@ -144,6 +161,15 @@ studentId,cardUid
 
 The CSV header line is optional; blank lines are skipped; UIDs are normalised like the tap. A card
 already enrolled to the same student counts as `unchanged`; to another student it is an error.
+
+**Attendance sheet.** The roster of the session's round (sorted by studentId) merged with the latest
+mark of each student (`NOT_MARKED` with null source/markedAt/markedBy when there is none), followed by
+the marked students who are not on the roster (`onShortlist: false`, sorted by studentId), e.g. a
+student who tapped a card without being shortlisted. A name comes from the roster row, else from
+`student_name`, else null. `counts.total` is the number of rows; `notMarked` counts roster students
+without a mark. `status` is the session's, so a CANCELLED session still shows every mark it had. The
+sheet only reads; marks are written with `POST /sessions/{id}/marks` exactly as before (X-User
+headers required, a tap never overrides a manual absent).
 
 Errors share one JSON shape, like the other services plus a `code`:
 `{status, error, code, message, errors[{field, message}]}`. `code` is the specific code from the
@@ -182,8 +208,23 @@ in `processed_event`, so a redelivery changes nothing.
 |---|---|
 | drive-events `SESSION_SCHEDULED` / `SESSION_UPDATED` / `SESSION_CANCELLED` | upsert `session_view` by sessionId (room, date, times, status), then apply uploads waiting for that session |
 | drive-events `DRIVE_SCHEDULED`, `ROUND_CREATED` | skipped |
-| import-events `ATTENDANCE_UPLOADED` | FILE marks, below |
-| import-events `SHORTLIST_UPLOADED`, `TIMETABLE_UPLOADED` | skipped |
+| import-events `ATTENDANCE_UPLOADED` | FILE marks, below; non-empty names from `students[]` into `student_name` |
+| import-events `SHORTLIST_UPLOADED` | replaces the round's `round_roster` (below); non-empty names into `student_name` |
+| import-events `TIMETABLE_UPLOADED` | skipped |
+
+Both import events are read the same way: `studentIds[]` says who is in the upload (10 digits; one bad
+ID refuses the whole message and sends it to the DLT), and the optional, additive
+`students[]: {studentId, name}` adds names. `schemaVersion` and `occurredAt` are read as optional,
+so events from import-service before v0.2.1 (no `students`, no `schemaVersion`) still work and give
+null names. Names are trimmed, inner whitespace collapsed, cut to 120 characters; a blank name is no name.
+
+**Rosters.** A SHORTLIST_UPLOADED replaces the whole roster of its `roundId` (bulk delete, then
+insert) in the same transaction as its `processed_event` row. Uploads of a round share the Kafka key
+`roundId`, so they arrive in upload order and the last one applied wins. timetable-service applies
+repeated shortlist uploads the same way (`shortlist_entry`, delete + insert per round), so both
+services always agree on who is shortlisted. **Names.** Every non-empty name that arrives, from a
+shortlist or an attendance upload, is stored in `student_name`; the newest wins and a missing or
+blank name never clears a stored one.
 
 **FILE marks.** For each listed student (10-digit IDs; one bad ID refuses the whole message):
 
@@ -229,6 +270,8 @@ docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-s
 | `mark` | every mark, never updated: unique mark_id, unique session + student + version |
 | `session_view` | sessions from drive-events (PK session_id), index on date + room |
 | `pending_file_upload` | uploads waiting for their session |
+| `round_roster` | round_id, student_id, student_name (nullable), upload_id, updated_at; unique round + student. Replaced per round by each shortlist upload |
+| `student_name` | student_id (PK), name, updated_at: the newest non-empty name from any upload |
 | `processed_event`, `outbox_event` | idempotency and the checkin-events outbox |
 
 ```sql
