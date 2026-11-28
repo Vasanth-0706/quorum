@@ -14,6 +14,8 @@ public final class EventTypes {
 
     /** import-events, from import-service. */
     public static final String ATTENDANCE_UPLOADED = "ATTENDANCE_UPLOADED";
+    public static final String SHORTLIST_UPLOADED = "SHORTLIST_UPLOADED";
+    public static final Set<String> IMPORT_TYPES = Set.of(ATTENDANCE_UPLOADED, SHORTLIST_UPLOADED);
 
     /** checkin-events, produced here. */
     public static final String ATTENDANCE_MARKED = "ATTENDANCE_MARKED";

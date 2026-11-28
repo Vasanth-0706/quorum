@@ -15,12 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Clock;
-import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Applies one message from drive-events or import-events in ONE transaction (marks and their
- * outbox rows included). Idempotent: an eventId already in processed_event is skipped, and an
+ * outbox rows included). Handled: SESSION_SCHEDULED / _UPDATED / _CANCELLED (drive-events),
+ * ATTENDANCE_UPLOADED (FILE marks, plus names) and SHORTLIST_UPLOADED (round roster, plus names). Idempotent: an eventId already in processed_event is skipped, and an
  * eventType this service does not handle is ignored. schemaVersion and occurredAt are optional
  * (import-events has neither). Unknown fields are ignored.
  */
@@ -34,13 +35,15 @@ public class InboundEventHandler {
 
     private final SessionViewRepository sessions;
     private final FileMarkService fileMarks;
+    private final RosterService rosters;
     private final ProcessedEventRepository processed;
     private final Clock clock;
 
-    public InboundEventHandler(SessionViewRepository sessions, FileMarkService fileMarks,
+    public InboundEventHandler(SessionViewRepository sessions, FileMarkService fileMarks, RosterService rosters,
                                ProcessedEventRepository processed, Clock clock) {
         this.sessions = sessions;
         this.fileMarks = fileMarks;
+        this.rosters = rosters;
         this.processed = processed;
         this.clock = clock;
     }
@@ -53,7 +56,7 @@ public class InboundEventHandler {
         String eventType = EventFields.text(event, "eventType");
         boolean handled = switch (topic) {
             case Topics.DRIVE_EVENTS -> EventTypes.SESSION_TYPES.contains(eventType);
-            case Topics.IMPORT_EVENTS -> EventTypes.ATTENDANCE_UPLOADED.equals(eventType);
+            case Topics.IMPORT_EVENTS -> EventTypes.IMPORT_TYPES.contains(eventType);
             default -> false;
         };
         if (!handled) {
@@ -68,6 +71,8 @@ public class InboundEventHandler {
 
         if (Topics.DRIVE_EVENTS.equals(topic)) {
             upsertSession(eventId, eventType, event);
+        } else if (EventTypes.SHORTLIST_UPLOADED.equals(eventType)) {
+            rosters.replace(event);
         } else {
             onAttendanceUploaded(eventId, event);
         }
@@ -100,13 +105,9 @@ public class InboundEventHandler {
     private void onAttendanceUploaded(String eventId, JsonNode e) {
         String uploadId = EventFields.text(e, "uploadId", 64);
         long sessionId = EventFields.id(e, "sessionId");
-        Set<String> studentIds = new LinkedHashSet<>();
-        for (JsonNode n : EventFields.array(e, "studentIds")) {
-            if (!n.isString() && !n.isIntegralNumber()) {
-                throw new InvalidEventException("studentIds[] must hold strings");
-            }
-            studentIds.add(EventFields.studentId(n.asString()));
-        }
+        Map<String, String> students = StudentList.read(e);
+        Set<String> studentIds = students.keySet();
+        rosters.remember(students);
         sessions.findById(sessionId).ifPresentOrElse(
                 session -> fileMarks.apply(uploadId, session, studentIds),
                 () -> fileMarks.park(eventId, uploadId, sessionId, studentIds));
