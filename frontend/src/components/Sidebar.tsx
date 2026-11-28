@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { SERVICES, type ServiceName } from '../api';
+import quorumMark from '../assets/quorum-mark-white.svg';
 import {
   CalendarIcon,
   ClashIcon,
   ClipboardCheckIcon,
   PencilIcon,
   PlusIcon,
-  QuorumMark,
   ReaderIcon,
   UploadIcon,
 } from './Icons';
@@ -77,9 +77,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <Link to="/drives" className="brand" aria-label="Quorum, placement office, go to drives">
-        <span className="brand-mark">
-          <QuorumMark size={18} />
-        </span>
+        <img className="brand-mark" src={quorumMark} alt="" width={32} height={32} />
         <span>
           <span className="brand-name">Quorum</span>
           <span className="brand-sub">Placement office</span>

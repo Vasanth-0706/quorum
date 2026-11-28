@@ -169,10 +169,3 @@ export const UserIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** Brand mark: the "Q" of Quorum drawn as a loupe. */
-export const QuorumMark = (p: IconProps) => (
-  <Icon strokeWidth={2.2} {...p}>
-    <circle cx="11" cy="11" r="5.5" />
-    <path d="m15.2 15.2 3.8 3.8" />
-  </Icon>
-);
