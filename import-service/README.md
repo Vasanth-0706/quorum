@@ -72,10 +72,10 @@ docker run --rm -p 8090:8090 \
 ## Endpoints
 
 ```bash
-# 1. Shortlist: one column of student IDs
+# 1. Shortlist: a column of student IDs, optionally a name column
 curl -F file=@samples/shortlist_valid.xlsx -F roundId=12 http://localhost:8090/imports/shortlist
 
-# 2. Attendance: one column of student IDs who were present
+# 2. Attendance: student IDs of those present, optionally a name column
 curl -F file=@samples/attendance.csv -F sessionId=7 http://localhost:8090/imports/attendance
 
 # 3. Timetable: sheets `enrolments` and `slots` (.xlsx only)
@@ -127,7 +127,16 @@ counts cover both sheets and each rejected entry also has a
   The student ID column may be called `studentId`, `student id`, `id`,
   `reg no`, `registration number` or `roll no`.
 - Fully empty rows are ignored.
-- Single-column uploads read the first sheet of the workbook.
+- Shortlist and attendance uploads read the first sheet of the workbook.
+- Shortlist and attendance files may have an **optional name column**, called
+  `name`, `student name` or `full name` (normalised like the ID headers, so
+  `Student Name`, `student_name` and `STUDENTNAME` all match). It must be in
+  the same header row as the ID column. Names are trimmed and inner runs of
+  spaces become one space; a blank name counts as no name (`null`); names are
+  cut to 120 characters. **A name never causes a row to be rejected**, and a
+  file without a name column behaves exactly as before.
+- The downloadable shortlist and attendance templates have the columns
+  `studentId` and `studentName`.
 
 ## Validation
 
@@ -158,11 +167,23 @@ Topic `import-events`, JSON values, no type headers. The producer uses
 | `ATTENDANCE_UPLOADED` | sessionId |
 | `TIMETABLE_UPLOADED` | semester |
 
+Every event carries `eventId`, `eventType`, `schemaVersion` (1) and
+`occurredAt` (ISO-8601 in UTC with its offset, e.g. `2026-11-28T06:15:02.123Z`),
+plus `uploadId` and `uploadedAt` (the report's local time, no offset).
+`schemaVersion` and `occurredAt` were added in v0.2.1 (report defect D-06);
+consumers built before that treat them as optional and keep working.
+
 ```json
-{"eventId":"uuid","eventType":"SHORTLIST_UPLOADED","uploadId":"uuid","roundId":12,"studentIds":["9900000001"],"uploadedAt":"2026-10-12T11:48:00"}
-{"eventId":"uuid","eventType":"ATTENDANCE_UPLOADED","uploadId":"uuid","sessionId":7,"studentIds":["9900000001"],"uploadedAt":"2026-10-12T11:48:00"}
-{"eventId":"uuid","eventType":"TIMETABLE_UPLOADED","uploadId":"uuid","semester":"2026-ODD","part":1,"totalParts":1,"slots":[{"sectionCode":"S12","courseName":"Cloud Native","dayOfWeek":"MONDAY","startTime":"10:00","endTime":"10:50","room":"C-301"}],"enrolments":[{"studentId":"9900000001","sectionCode":"S12"}],"uploadedAt":"2026-10-12T11:48:00"}
+{"eventId":"uuid","eventType":"SHORTLIST_UPLOADED","schemaVersion":1,"occurredAt":"2026-11-28T06:15:02.123Z","uploadId":"uuid","roundId":12,"studentIds":["9900000001","9900000002"],"students":[{"studentId":"9900000001","name":"Tony Stark"},{"studentId":"9900000002","name":null}],"uploadedAt":"2026-11-28T11:45:02"}
+{"eventId":"uuid","eventType":"ATTENDANCE_UPLOADED","schemaVersion":1,"occurredAt":"2026-11-28T06:15:02.123Z","uploadId":"uuid","sessionId":7,"studentIds":["9900000001"],"students":[{"studentId":"9900000001","name":"Tony Stark"}],"uploadedAt":"2026-11-28T11:45:02"}
+{"eventId":"uuid","eventType":"TIMETABLE_UPLOADED","schemaVersion":1,"occurredAt":"2026-11-28T06:15:02.123Z","uploadId":"uuid","semester":"2026-ODD","part":1,"totalParts":1,"slots":[{"sectionCode":"S12","courseName":"Cloud Native","dayOfWeek":"MONDAY","startTime":"10:00","endTime":"10:50","room":"C-301"}],"enrolments":[{"studentId":"9900000001","sectionCode":"S12"}],"uploadedAt":"2026-11-28T11:45:02"}
 ```
+
+`students` is **additive**: it lists the same students as `studentIds`, in the
+same order, each with its `name` or `null` when the file had no name for it (or
+no name column at all). `studentIds` is unchanged, so consumers that only read
+IDs (timetable-service, attendance-service) are not affected. checkin-service
+reads `students` to show names on the round roster and the attendance sheet.
 
 A timetable event that would exceed 900 KB is split into several messages with
 the same `uploadId` and key (so they stay in order on one partition), numbered
@@ -180,6 +201,12 @@ fake publisher.
 
 `samples/` holds ready-made upload files (`python samples/generate_samples.py`
 regenerates them). All IDs in them are made up; never commit real student data.
+
+`samples/demo/` holds the demo workbooks used for the live walk-through
+(`Quorum_Demo_Timetable.xlsx`, `Quorum_Demo_Shortlist.xlsx`,
+`Quorum_Demo_Attendance.xlsx`, `Quorum_Demo_Shortlist_WithErrors.xlsx` and the
+expected results). They have `studentId` and `studentName` columns; the names
+and IDs are synthetic apart from four team members' IDs.
 
 ## Code layout
 
