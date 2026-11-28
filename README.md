@@ -10,7 +10,7 @@ Independent services talk only through Kafka topics and each owns its own MySQL 
 | placement-service | Java 17, Spring Boot | 8081 | `quorum_placement` | drives, rounds, sessions → `drive-events` |
 | attendance-service | Java 17, Spring Boot | 8082 | `quorum_attendance` | decides OD, corrections → `od-events` |
 | timetable-service | Java 17, Spring Boot | 8083 | `quorum_timetable` | timetables, shortlists, clashes → `clash-events` |
-| checkin-service | Java 17, Spring Boot | 8084 | `quorum_checkin` | RFID readers, cards, marks → `checkin-events` |
+| checkin-service | Java 17, Spring Boot | 8084 | `quorum_checkin` | RFID readers, cards, marks → `checkin-events`; round rosters and the attendance sheet |
 | import-service | Python 3.12, FastAPI | 8090 | `quorum_import` | Excel/CSV uploads → `import-events` |
 | frontend | React + Vite, served by nginx | 5173 | | placement-office console |
 
@@ -62,9 +62,12 @@ Open http://localhost:5173. The sidebar shows whether every service answers. At 
 "Signed in as" picks Coordinator or Director and a user id; this is **TEMPORARY** (sent as the
 `X-User-Id` / `X-User-Role` headers until real login). Readers can only be registered by a Director.
 
-Demo path: Create drive → add rounds and sessions → Excel import (timetable, shortlist) →
-Clashes → a session's Check-in page (mark by hand) → OD records → Corrections → Readers & cards.
-Sample files with made-up student IDs are in `import-service/samples/`.
+Demo path: Timetable (upload the semester timetable) → Create drive → add rounds and sessions →
+on each round, **Students → Upload shortlist** → a session's **Attendance** button
+(`/sessions/:id/attendance`: mark Present/Absent, upload the attendance file) → Clashes → OD records →
+Corrections → Readers & cards. The old routes `/imports` and `/sessions/:id` redirect to
+`/timetable` and `/sessions/:id/attendance`. Sample files with made-up student IDs are in
+`import-service/samples/`; the demo workbooks (ID and name columns) are in `import-service/samples/demo/`.
 
 ### Point the ESP32 reader at the laptop
 
@@ -93,7 +96,7 @@ curl -s -F file=@import-service/samples/shortlist_valid.xlsx -F roundId=1 localh
 sleep 3; curl -s 'localhost:8083/clashes?roundId=1&date=2026-11-30'                    # 10 clashes, S12 10:00-10:50
 curl -s -F file=@import-service/samples/attendance.csv -F sessionId=1 localhost:8090/imports/attendance
 sleep 3; curl -s 'localhost:8082/od?date=2026-11-30'                                     # 10 GRANTED OD records
-curl -s 'localhost:8082/outbox?limit=1'; curl -s 'localhost:8084/sessions/1/marks' | head -c 300
+curl -s 'localhost:8082/outbox?limit=1'; curl -s 'localhost:8084/sessions/1/attendance-sheet' | head -c 300
 ```
 
 ## Repository layout
