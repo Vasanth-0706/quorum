@@ -94,14 +94,10 @@ input {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: block;
   flex: none;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: var(--color-accent);
-  color: #fff;
 }
 
 .brand-name {
