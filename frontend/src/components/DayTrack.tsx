@@ -1,7 +1,8 @@
-import { DAY_END, DAY_START, formatDuration } from '../time';
+import { DAY_END, DAY_RANGE_TEXT, DAY_START, formatDuration, formatHM } from '../time';
 
 const SPAN = DAY_END - DAY_START;
-const TICKS = [8, 10, 12, 14, 17];
+/** Tick positions in minutes after midnight: the day's edges plus every two hours between. */
+const TICKS = [DAY_START, 9 * 60, 11 * 60, 13 * 60, 15 * 60, DAY_END];
 
 function percent(minutes: number): number {
   const clamped = Math.min(Math.max(minutes, DAY_START), DAY_END);
@@ -20,12 +21,12 @@ interface DayTrackProps {
   height?: number;
   /** Show the range and duration under the track. */
   showMeta?: boolean;
-  /** Show 8:00 / 10:00 / ... labels under the track. */
+  /** Show time labels (day start, 9:00, 11:00, ..., day end) under the track. */
   showTicks?: boolean;
 }
 
 /**
- * The college day from 8:00 to 17:00 as a grey track, with the drive drawn
+ * The college day (DAY_START to DAY_END in time.ts) as a grey track, with the drive drawn
  * on it in maroon. Times outside the day are clamped to the track edges.
  */
 export function DayTrack({ start, end, height = 10, showMeta = false, showTicks = false }: DayTrackProps) {
@@ -34,8 +35,8 @@ export function DayTrack({ start, end, height = 10, showMeta = false, showTicks 
   const right = valid ? percent(end) : left;
 
   const label = valid
-    ? `${clock(start)} to ${clock(end)}, ${formatDuration(end - start)}, against the college day from 8:00 to 17:00`
-    : 'College day from 8:00 to 17:00';
+    ? `${clock(start)} to ${clock(end)}, ${formatDuration(end - start)}, against the college day from ${DAY_RANGE_TEXT}`
+    : `College day from ${DAY_RANGE_TEXT}`;
 
   return (
     <div>
@@ -54,9 +55,9 @@ export function DayTrack({ start, end, height = 10, showMeta = false, showTicks 
       )}
       {showTicks && (
         <div className="track-ticks" aria-hidden="true">
-          {TICKS.map((h) => (
-            <span key={h} style={{ left: `${percent(h * 60)}%` }}>
-              {h}:00
+          {TICKS.map((m) => (
+            <span key={m} style={{ left: `${percent(m)}%` }}>
+              {formatHM(m)}
             </span>
           ))}
         </div>

@@ -7,7 +7,7 @@ import { DayTrack } from '../components/DayTrack';
 import { Field } from '../components/Field';
 import { ChevronLeftIcon } from '../components/Icons';
 import { useHealth } from '../health';
-import { DAY_END, DAY_START, formatDuration, toMinutes } from '../time';
+import { DAY_END, DAY_RANGE_TEXT, DAY_START, formatDuration, toMinutes } from '../time';
 
 type FieldName = 'companyName' | 'driveDate' | 'startTime' | 'endTime' | 'venue';
 type Values = Record<FieldName, string>;
@@ -204,8 +204,8 @@ function DaySummary({ start, end }: { start: number | null; end: number | null }
   const outside = start < DAY_START || end > DAY_END;
   return (
     <>
-      Takes <strong>{formatDuration(end - start)}</strong> of the 9 h college day.
-      {outside && ' Part of it falls outside 8:00 to 17:00, so the bar is cut at the edge.'}
+      Takes <strong>{formatDuration(end - start)}</strong> of the {formatDuration(DAY_END - DAY_START)} college day.
+      {outside && ` Part of it falls outside ${DAY_RANGE_TEXT}, so the bar is cut at the edge.`}
     </>
   );
 }

@@ -7,7 +7,7 @@ import { DayTrack } from '../components/DayTrack';
 import { AlertIcon, CalendarIcon, PlusIcon, SearchIcon } from '../components/Icons';
 import { StatusPill } from '../components/StatusPill';
 import { useHealth } from '../health';
-import { formatDriveDate, toMinutes, todayIso } from '../time';
+import { DAY_RANGE_TEXT, formatDriveDate, toMinutes, todayIso } from '../time';
 
 type Filter = 'upcoming' | 'past' | 'all';
 
@@ -235,7 +235,7 @@ export function DrivesPage() {
         )}
 
         <div className="card-footer">
-          <span>Bar shows the drive against the college day, 8:00 to 17:00</span>
+          <span>Bar shows the drive against the college day, {DAY_RANGE_TEXT}</span>
           {load.kind === 'ready' && <span>{countLabel}</span>}
         </div>
       </section>

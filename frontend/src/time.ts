@@ -1,8 +1,8 @@
 // Date and time helpers. Dates stay as local YYYY-MM-DD strings so that no
 // timezone shifts a drive onto the wrong day.
 
-export const DAY_START = 8 * 60; // 08:00
-export const DAY_END = 17 * 60; // 17:00
+export const DAY_START = 7 * 60 + 10; // 07:10
+export const DAY_END = 17 * 60 + 30; // 17:30
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -17,6 +17,14 @@ export function toMinutes(time: string | null | undefined): number | null {
   if (h > 23 || m > 59) return null;
   return h * 60 + m;
 }
+
+/** Minutes after midnight to H:MM: 430 to "7:10", 1050 to "17:30". */
+export function formatHM(minutes: number): string {
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/** The college day as "7:10 to 17:30". */
+export const DAY_RANGE_TEXT = `${formatHM(DAY_START)} to ${formatHM(DAY_END)}`;
 
 /** "09:30:00" to "09:30". */
 export function shortTime(time: string): string {
