@@ -17,6 +17,9 @@ ALLOWED_EXTENSIONS = (".xlsx", ".csv")
 # Accepted header names, already normalised (lower case, no spaces/underscores).
 STUDENT_ID = {"studentid", "id", "regno", "registrationnumber", "rollno"}
 STUDENT_ID_COLUMNS = {"studentId": STUDENT_ID}
+# Optional on shortlist and attendance files; "Student Name" normalises to "studentname".
+STUDENT_NAME = {"name", "studentname", "fullname"}
+STUDENT_NAME_COLUMNS = {"name": STUDENT_NAME}
 ENROLMENT_COLUMNS = {"studentId": STUDENT_ID, "sectionCode": {"sectioncode"}}
 SLOT_COLUMNS = {
     "sectionCode": {"sectioncode"},
@@ -95,35 +98,48 @@ def _read_xlsx(content, sheet):
     return frame.values.tolist()
 
 
-def extract(rows, columns, where="the file"):
+def extract(rows, columns, where="the file", optional=None):
     """Find the header row and return [(excel_row_number, {field: raw_cell})].
 
     `columns` maps a field name to the set of normalised headers accepted for it.
+    `optional` does the same for columns that may be missing: they are looked
+    for in the header row only, and a missing one gives None in every record.
     Fully empty rows are skipped.
     """
     header_index, positions = _find_header(rows, columns, where)
+    optional = optional or {}
+    if optional:
+        found = _positions(rows[header_index], optional)
+        for field in optional:
+            positions[field] = found.get(field)
     result = []
     for index in range(header_index + 1, len(rows)):
         row = rows[index]
         if all(is_empty(cell) for cell in row):
             continue
         record = {
-            field: row[position] if position < len(row) else None
+            field: row[position] if position is not None and position < len(row) else None
             for field, position in positions.items()
         }
         result.append((index + 1, record))
     return result
 
 
+def _positions(row, columns):
+    """{field: index of the first cell whose normalised header is accepted for it}."""
+    headers = [None if is_empty(cell) else normalise_header(cell) for cell in row]
+    positions = {}
+    for field, accepted in columns.items():
+        for position, header in enumerate(headers):
+            if header in accepted:
+                positions[field] = position
+                break
+    return positions
+
+
 def _find_header(rows, columns, where):
     for index, row in enumerate(rows[: config.HEADER_SEARCH_ROWS]):
-        headers = [None if is_empty(cell) else normalise_header(cell) for cell in row]
-        positions = {}
-        for field, accepted in columns.items():
-            for position, header in enumerate(headers):
-                if header in accepted:
-                    positions[field] = position
-                    break
+        positions = _positions(row, columns)
         if len(positions) == len(columns):
             return index, positions
     raise ParseError(

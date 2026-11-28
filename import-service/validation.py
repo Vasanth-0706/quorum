@@ -36,8 +36,21 @@ def student_id_problem(student_id):
     return None
 
 
-def validate_student_ids(rows):
-    """rows: [(row_number, {"studentId": cell})] -> (student_ids, rejected)."""
+NAME_MAX_LENGTH = 120
+
+
+def student_name(value):
+    """Trimmed name, or None when the cell is blank. A name never rejects a row."""
+    text = re.sub(r"\s+", " ", cell_text(value)).strip()
+    return text[:NAME_MAX_LENGTH] or None
+
+
+def validate_students(rows):
+    """rows: [(row_number, {"studentId": cell, "name"?: cell})] -> (students, rejected).
+
+    Each accepted student is {"studentId": "...", "name": "..." | None}, in file order.
+    The ID alone decides whether a row is accepted.
+    """
     accepted, rejected, seen = [], [], set()
     for row_number, record in rows:
         student_id = normalise_student_id(record["studentId"])
@@ -48,8 +61,14 @@ def validate_student_ids(rows):
             rejected.append({"row": row_number, "value": student_id, "reason": reason})
             continue
         seen.add(student_id)
-        accepted.append(student_id)
+        accepted.append({"studentId": student_id, "name": student_name(record.get("name"))})
     return accepted, rejected
+
+
+def validate_student_ids(rows):
+    """rows: [(row_number, {"studentId": cell})] -> (student_ids, rejected)."""
+    students, rejected = validate_students(rows)
+    return [s["studentId"] for s in students], rejected
 
 
 def parse_time(value):

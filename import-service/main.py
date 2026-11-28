@@ -21,8 +21,8 @@ log = logging.getLogger("import-service")
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 TEMPLATES = {
-    "shortlist": {"shortlist": ["studentId"]},
-    "attendance": {"attendance": ["studentId"]},
+    "shortlist": {"shortlist": ["studentId", "studentName"]},
+    "attendance": {"attendance": ["studentId", "studentName"]},
     "timetable": {
         "enrolments": ["studentId", "sectionCode"],
         "slots": ["sectionCode", "courseName", "dayOfWeek", "startTime", "endTime", "room"],
@@ -95,12 +95,14 @@ def finish_upload(upload_type, target_id, file_name, total_rows, accepted_count,
 
 
 def student_id_upload(upload_type, target_id, file, build_event):
+    """Shortlist or attendance: a studentId column and an optional name column."""
     file_name, content = read_upload(file)
-    rows = parsing.extract(parsing.read_rows(content, file_name), parsing.STUDENT_ID_COLUMNS)
-    student_ids, rejected = validation.validate_student_ids(rows)
+    rows = parsing.extract(parsing.read_rows(content, file_name), parsing.STUDENT_ID_COLUMNS,
+                           optional=parsing.STUDENT_NAME_COLUMNS)
+    students, rejected = validation.validate_students(rows)
     return finish_upload(
-        upload_type, target_id, file_name, len(rows), len(student_ids), rejected,
-        lambda upload_id, uploaded_at: [build_event(upload_id, target_id, student_ids, uploaded_at)],
+        upload_type, target_id, file_name, len(rows), len(students), rejected,
+        lambda upload_id, uploaded_at: [build_event(upload_id, target_id, students, uploaded_at)],
     )
 
 
