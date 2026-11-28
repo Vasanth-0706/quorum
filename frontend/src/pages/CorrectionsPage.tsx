@@ -297,7 +297,7 @@ export function CorrectionsPage() {
             <p className="card-head-sub">Newest first. Rows for the student above are highlighted.</p>
           </div>
           {pick.sessionId && (
-            <Link to={`/sessions/${pick.sessionId}`} className="text-link">
+            <Link to={`/sessions/${pick.sessionId}/attendance`} className="text-link">
               Open check-in
             </Link>
           )}

@@ -1881,3 +1881,313 @@ select.input:disabled {
     display: none;
   }
 }
+
+/* ---------- Uploads inside a card (round shortlist, session attendance) ---------- */
+.result-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.text-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.report-embedded {
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.report-embedded .result-head {
+  padding: var(--space-2) var(--space-3);
+}
+
+.report-embedded .card-body {
+  padding: var(--space-2) var(--space-3);
+}
+
+.inline-upload-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.inline-upload-head .panel-title {
+  margin-bottom: 4px;
+}
+
+.inline-upload-head .text-link {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ---------- Students panel of a round ---------- */
+.students-panel {
+  border-top: 1px solid var(--color-divider);
+}
+
+.students-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.students-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.students-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-nav);
+  background: var(--color-page);
+  color: var(--color-text-secondary);
+}
+
+.students-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.students-panel .panel {
+  border-top: 1px solid var(--color-divider);
+}
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  background: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.disclosure:hover {
+  background: #fafbfc;
+}
+
+.disclosure .icon {
+  transition: transform 120ms ease;
+}
+
+.disclosure[aria-expanded='true'] .icon {
+  transform: rotate(90deg);
+}
+
+.disclosure:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Tables that scroll inside their card keep their header in view. */
+.table-sticky {
+  max-height: 360px;
+  overflow: auto;
+  border-top: 1px solid var(--color-divider);
+}
+
+.table-sticky-tall {
+  max-height: calc(100vh - 220px);
+  min-height: 240px;
+}
+
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 0;
+  background: var(--color-surface);
+  box-shadow: inset 0 -1px 0 var(--color-divider);
+}
+
+.sheet-toolbar + .table-sticky {
+  border-top: 0;
+}
+
+.roster-table td {
+  height: 44px;
+}
+
+/* ---------- Attendance sheet ---------- */
+.sheet-counters {
+  padding: var(--space-2) var(--space-3);
+}
+
+.figures-4 {
+  gap: var(--space-6);
+}
+
+.sheet-toolbar {
+  flex-wrap: wrap;
+}
+
+.sheet-toolbar-left,
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.sheet-toolbar {
+  justify-content: flex-start;
+}
+
+.sheet-toolbar .search {
+  width: 232px;
+}
+
+.segmented-count {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.sheet-table {
+  min-width: 860px;
+}
+
+.sheet-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.row-error {
+  margin-top: 4px;
+  font-size: var(--text-helper);
+  font-weight: 500;
+  color: var(--color-error);
+}
+
+.table tbody tr.row-divider th {
+  height: 36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: var(--color-page);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.sheet-no-match {
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Compact segmented Present / Absent control: neutral until a mark exists. */
+.mark-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.mark-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.mark-toggle button + button {
+  border-left: 1px solid var(--color-input-border);
+}
+
+.mark-toggle button:hover:not(:disabled) {
+  background: var(--color-page);
+  color: var(--color-text);
+}
+
+.mark-toggle button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline-offset: -2px;
+}
+
+.mark-toggle button.mark-present[aria-pressed='true'] {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.mark-toggle button.mark-absent[aria-pressed='true'] {
+  background: var(--color-error);
+  color: #fff;
+}
+
+.mark-toggle button:disabled {
+  cursor: default;
+}
+
+.mark-toggle button:disabled:not([aria-pressed='true']) {
+  color: #a3a7b2;
+}
+
+.mark-toggle button[aria-pressed='true']:disabled {
+  opacity: 0.75;
+}
+
+.mark-toggle .spinner {
+  width: 12px;
+  height: 12px;
+  border-color: rgba(22, 24, 29, 0.15);
+  border-top-color: var(--color-text-secondary);
+}
+
+.panel-confirm-accent {
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
+.panel-confirm-accent .panel-title {
+  color: var(--color-text);
+}
+
+@media (max-width: 900px) {
+  .students-head,
+  .inline-upload-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .figures-4 {
+    gap: var(--space-3);
+  }
+}

@@ -170,8 +170,8 @@ function ClashCard({ result }: { result: ClashResult }) {
 
       {result.semester === null ? (
         <EmptyState title="No timetable applied yet">
-          <p className="state-text">Upload the semester timetable on Excel import; clashes are computed once it is in.</p>
-          <Link to="/imports?type=timetable" className={buttonClass('secondary', true)}>
+          <p className="state-text">Upload the semester timetable on the Timetable page; clashes are computed once it is in.</p>
+          <Link to="/timetable" className={buttonClass('secondary', true)}>
             Upload timetable
           </Link>
         </EmptyState>

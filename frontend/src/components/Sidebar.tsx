@@ -35,10 +35,10 @@ const NAV: NavItem[] = [
     isActive: (path) => path === '/drives/new',
   },
   {
-    to: '/imports',
-    label: 'Excel import',
+    to: '/timetable',
+    label: 'Timetable',
     icon: <UploadIcon />,
-    isActive: (path) => path.startsWith('/imports'),
+    isActive: (path) => path.startsWith('/timetable'),
   },
   {
     to: '/clashes',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ApiError,
   cancelSession,
@@ -7,8 +7,13 @@ import {
   createSession,
   errorText,
   getDrive,
+  getRoundRoster,
   rescheduleSession,
+  templateUrl,
+  uploadShortlist,
   type DriveDetail,
+  type ImportReport,
+  type RosterStudent,
   type Round,
   type Session,
   type SessionInput,
@@ -17,8 +22,10 @@ import { Banner } from '../components/Banner';
 import { Button, buttonClass } from '../components/Button';
 import { DayTrack } from '../components/DayTrack';
 import { Field } from '../components/Field';
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '../components/Icons';
-import { EmptyState, ErrorState } from '../components/States';
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, PlusIcon, UploadIcon, UserIcon } from '../components/Icons';
+import { ImportReportView } from '../components/ImportReport';
+import { InlineUpload } from '../components/InlineUpload';
+import { EmptyState, ErrorState, SkeletonRows } from '../components/States';
 import { StatusPill } from '../components/StatusPill';
 import { formatDriveDate, formatTimeRange, shortTime, toMinutes } from '../time';
 import { useResource } from '../useResource';
@@ -32,6 +39,9 @@ export function DriveDetailPage() {
   const params = useParams();
   const driveId = Number(params.id);
   const validId = Number.isInteger(driveId) && driveId > 0;
+  // ?shortlist=<roundId> (from an attendance sheet without a shortlist) opens that round's upload.
+  const [search] = useSearchParams();
+  const shortlistFor = Number(search.get('shortlist')) || null;
 
   const { state, reload } = useResource<DriveDetail>(
     validId ? (signal) => getDrive(driveId, signal) : null,
@@ -167,6 +177,7 @@ export function DriveDetailPage() {
             }}
             onDone={done}
             onError={(text) => setNotice({ tone: 'error', text })}
+            openShortlist={shortlistFor === round.id}
           />
         ))
       )}
@@ -195,9 +206,21 @@ interface RoundCardProps {
   onRowAction: (action: RowAction) => void;
   onDone: (text: string) => void;
   onError: (text: string) => void;
+  openShortlist: boolean;
 }
 
-function RoundCard({ drive, round, adding, rowAction, onAdd, onCloseAdd, onRowAction, onDone, onError }: RoundCardProps) {
+function RoundCard({
+  drive,
+  round,
+  adding,
+  rowAction,
+  onAdd,
+  onCloseAdd,
+  onRowAction,
+  onDone,
+  onError,
+  openShortlist,
+}: RoundCardProps) {
   const lastSession = round.sessions[round.sessions.length - 1];
   const defaults: SessionInput = lastSession
     ? { date: lastSession.date, startTime: shortTime(lastSession.endTime), endTime: '', room: lastSession.room }
@@ -262,8 +285,8 @@ function RoundCard({ drive, round, adding, rowAction, onAdd, onCloseAdd, onRowAc
               <col style={{ width: 128 }} />
               <col style={{ width: '24%' }} />
               <col />
-              <col style={{ width: 128 }} />
-              <col style={{ width: 290 }} />
+              <col style={{ width: 136 }} />
+              <col style={{ width: 316 }} />
             </colgroup>
             <thead>
               <tr>
@@ -292,7 +315,183 @@ function RoundCard({ drive, round, adding, rowAction, onAdd, onCloseAdd, onRowAc
           </table>
         </div>
       )}
+
+      <StudentsPanel round={round} openUpload={openShortlist} />
     </section>
+  );
+}
+
+// ---------- Students (shortlist) of a round ----------
+
+interface UploadResult {
+  report: ImportReport;
+  checkedAt: Date;
+}
+
+const ROSTER_WAIT_MS = 15_000;
+
+function StudentsPanel({ round, openUpload }: { round: Round; openUpload: boolean }) {
+  const [uploading, setUploading] = useState(openUpload);
+  const [result, setResult] = useState<UploadResult | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  // After a published upload the roster arrives through Kafka, so poll for a short while.
+  const [waitingSince, setWaitingSince] = useState<number | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const uploadButtonRef = useRef<HTMLButtonElement>(null);
+
+  const roster = useResource<RosterStudent[]>(
+    (signal) => getRoundRoster(round.id, signal),
+    [round.id],
+    waitingSince !== null ? 1000 : undefined,
+  );
+  const students = roster.state.kind === 'ready' ? roster.state.data : null;
+
+  useEffect(() => {
+    if (waitingSince === null || !result) return;
+    const arrived =
+      students !== null &&
+      students.length === result.report.acceptedCount &&
+      roster.lastLoaded !== null &&
+      roster.lastLoaded.getTime() > waitingSince;
+    if (arrived || Date.now() - waitingSince > ROSTER_WAIT_MS) setWaitingSince(null);
+  }, [students, waitingSince, result, roster.lastLoaded]);
+
+  useEffect(() => {
+    if (openUpload) panelRef.current?.scrollIntoView({ block: 'start' });
+  }, [openUpload]);
+
+  const titleId = `round-${round.id}-students`;
+  const named = students?.filter((s) => s.name).length ?? 0;
+
+  function handleReport(report: ImportReport) {
+    setResult({ report, checkedAt: new Date() });
+    setUploading(false);
+    if (report.status === 'PUBLISHED') {
+      setWaitingSince(Date.now());
+      setExpanded(true);
+    }
+    window.setTimeout(() => uploadButtonRef.current?.focus(), 0);
+  }
+
+  return (
+    <div className="students-panel" ref={panelRef} id={`round-${round.id}-students-panel`}>
+      <div className="students-head">
+        <div className="students-summary">
+          <span className="students-icon" aria-hidden="true">
+            <UserIcon size={16} />
+          </span>
+          <div>
+            <h3 className="students-title" id={titleId}>
+              Students
+            </h3>
+            <p className="card-head-sub" aria-live="polite">
+              {roster.state.kind === 'loading'
+                ? 'Loading shortlist'
+                : roster.state.kind === 'error'
+                  ? 'Shortlist unavailable'
+                  : students!.length === 0
+                    ? 'No shortlist uploaded yet'
+                    : `${students!.length} shortlisted${named < students!.length ? `, ${students!.length - named} without a name` : ''}`}
+              {waitingSince !== null && ' · updating'}
+            </p>
+          </div>
+        </div>
+        <div className="card-head-actions">
+          <a className="text-link" href={templateUrl('shortlist')} download>
+            <DownloadIcon size={16} />
+            Download template
+          </a>
+          {!uploading && (
+            <Button
+              ref={uploadButtonRef}
+              variant="secondary"
+              small
+              icon={<UploadIcon size={16} />}
+              onClick={() => setUploading(true)}
+            >
+              Upload shortlist
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {uploading && (
+        <InlineUpload
+          id={`round-${round.id}-shortlist-file`}
+          type="shortlist"
+          title={`Upload the shortlist of round ${round.sequence}`}
+          targetText={`round ${round.name} (#${round.id})`}
+          hint="Columns studentId and, optionally, studentName. A new upload replaces the round's shortlist."
+          upload={(file) => uploadShortlist(round.id, file)}
+          onReport={handleReport}
+          onClose={() => setUploading(false)}
+        />
+      )}
+
+      {result && (
+        <ImportReportView
+          report={result.report}
+          checkedAt={result.checkedAt}
+          targetLabel="Round"
+          embedded
+          headingId={`round-${round.id}-report`}
+          onDismiss={() => setResult(null)}
+        />
+      )}
+
+      {roster.state.kind === 'error' ? (
+        <ErrorState error={roster.state.error} onRetry={roster.reload} />
+      ) : (
+        students !== null &&
+        students.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="disclosure"
+              aria-expanded={expanded}
+              aria-controls={`round-${round.id}-roster`}
+              onClick={() => setExpanded((e) => !e)}
+            >
+              <ChevronRightIcon size={14} />
+              {expanded ? 'Hide' : 'Show'} the {students.length} shortlisted students
+            </button>
+            {expanded && (
+              <div className="table-sticky" id={`round-${round.id}-roster`}>
+                <table className="table compact-table roster-table" aria-labelledby={titleId}>
+                  <colgroup>
+                    <col style={{ width: 160 }} />
+                    <col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Student ID</th>
+                      <th scope="col">Name</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((s) => (
+                      <tr key={s.studentId}>
+                        <td className="cell-strong mono">{s.studentId}</td>
+                        <td className="cell-truncate" title={s.name ?? undefined}>
+                          {s.name ?? <span className="value-empty" aria-label="name unknown">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )
+      )}
+      {roster.state.kind === 'loading' && (
+        <table className="table compact-table" aria-hidden="true">
+          <tbody>
+            <SkeletonRows columns={2} rows={2} />
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
@@ -342,8 +541,8 @@ function SessionRows({ session, action, onAction, onDone, onError }: SessionRows
         </td>
         <td>
           <div className="row-actions">
-            <Link to={`/sessions/${session.id}`} className={buttonClass('secondary', true)}>
-              Check-in
+            <Link to={`/sessions/${session.id}/attendance`} className={buttonClass('secondary', true)}>
+              Attendance
             </Link>
             {!cancelled && (
               <>

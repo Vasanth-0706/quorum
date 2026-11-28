@@ -7,9 +7,9 @@ import { CreateDrivePage } from './pages/CreateDrivePage';
 import { DevicesPage } from './pages/DevicesPage';
 import { DriveDetailPage } from './pages/DriveDetailPage';
 import { DrivesPage } from './pages/DrivesPage';
-import { ImportPage } from './pages/ImportPage';
 import { OdPage } from './pages/OdPage';
-import { SessionCheckinPage } from './pages/SessionCheckinPage';
+import { SessionCheckinPage, SessionRedirect } from './pages/SessionCheckinPage';
+import { TimetablePage } from './pages/TimetablePage';
 
 export function App() {
   return (
@@ -23,8 +23,11 @@ export function App() {
               <Route path="/drives" element={<DrivesPage />} />
               <Route path="/drives/new" element={<CreateDrivePage />} />
               <Route path="/drives/:id" element={<DriveDetailPage />} />
-              <Route path="/imports" element={<ImportPage />} />
-              <Route path="/sessions/:id" element={<SessionCheckinPage />} />
+              <Route path="/timetable" element={<TimetablePage />} />
+              {/* The old "Excel import" page: shortlists and attendance now live on the drive. */}
+              <Route path="/imports" element={<Navigate to="/timetable" replace />} />
+              <Route path="/sessions/:id/attendance" element={<SessionCheckinPage />} />
+              <Route path="/sessions/:id" element={<SessionRedirect />} />
               <Route path="/clashes" element={<ClashesPage />} />
               <Route path="/od" element={<OdPage />} />
               <Route path="/corrections" element={<CorrectionsPage />} />

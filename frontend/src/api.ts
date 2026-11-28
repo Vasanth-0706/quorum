@@ -91,6 +91,15 @@ export interface ClashResult {
   lastPublished: { eventId: string; queuedAt: string; clashCount: number; current: boolean } | null;
 }
 
+export interface Semester {
+  semester: string;
+  active: boolean;
+  uploadId: string;
+  slotCount: number;
+  enrolmentCount: number;
+  appliedAt: string;
+}
+
 // ---------- Types: attendance-service ----------
 
 export interface OdRecord {
@@ -186,6 +195,46 @@ export interface CardImportResult {
   imported: number;
   unchanged: number;
   total: number;
+}
+
+/** A shortlisted student of a round. `name` is null when no upload named them. */
+export interface RosterStudent {
+  studentId: string;
+  name: string | null;
+}
+
+export type SheetStatus = 'PRESENT' | 'ABSENT' | 'NOT_MARKED';
+
+export interface SheetRow {
+  studentId: string;
+  name: string | null;
+  /** false for a marked student who is not on the round's shortlist (e.g. a card tap). */
+  onShortlist: boolean;
+  status: SheetStatus;
+  source: MarkSource | null;
+  markedAt: string | null;
+  markedBy: string | null;
+}
+
+export interface SheetCounts {
+  present: number;
+  absent: number;
+  notMarked: number;
+  total: number;
+}
+
+/** GET /sessions/{id}/attendance-sheet on checkin-service. */
+export interface AttendanceSheet {
+  sessionId: number;
+  roundId: number;
+  driveId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+  status: SessionStatus;
+  counts: SheetCounts;
+  students: SheetRow[];
 }
 
 export interface UnknownTap {
@@ -455,6 +504,11 @@ export function getClashes(roundId: number, date: string | null, signal?: AbortS
   return list<ClashResult>('timetable', `/clashes?${query}`, signal);
 }
 
+/** Semesters with a stored timetable; the active one (the latest applied) first. */
+export function listSemesters(signal?: AbortSignal): Promise<Semester[]> {
+  return list<Semester>('timetable', '/timetable/semesters', signal);
+}
+
 // ---------- attendance-service ----------
 
 export function listOd(date: string, includeRevoked: boolean, signal?: AbortSignal): Promise<OdRecord[]> {
@@ -523,6 +577,16 @@ export async function markStudent(
     write: true,
   });
   return { mark: data, created: status === 201 };
+}
+
+/** The round's shortlist as checkin-service knows it; [] when none was uploaded. */
+export function getRoundRoster(roundId: number, signal?: AbortSignal): Promise<RosterStudent[]> {
+  return list<RosterStudent>('checkin', `/rounds/${roundId}/roster`, signal);
+}
+
+/** Roster merged with the latest marks. 404 (code SESSION_NOT_FOUND) until the session reaches checkin-service. */
+export function getAttendanceSheet(sessionId: number, signal?: AbortSignal): Promise<AttendanceSheet> {
+  return get<AttendanceSheet>('checkin', `/sessions/${sessionId}/attendance-sheet`, signal);
 }
 
 export function listDevices(signal?: AbortSignal): Promise<Device[]> {
@@ -604,4 +668,16 @@ export async function uploadImport(type: ImportType, file: File, id: string): Pr
   const unreachable = isUnreachable(res, body);
   reportHealth('import', !unreachable);
   throw new ApiError(messageFrom(body, `import-service answered ${res.status}`), res.status, unreachable, 'import');
+}
+
+export function uploadShortlist(roundId: number, file: File): Promise<ImportReport> {
+  return uploadImport('shortlist', file, String(roundId));
+}
+
+export function uploadAttendance(sessionId: number, file: File): Promise<ImportReport> {
+  return uploadImport('attendance', file, String(sessionId));
+}
+
+export function uploadTimetable(semester: string, file: File): Promise<ImportReport> {
+  return uploadImport('timetable', file, semester);
 }

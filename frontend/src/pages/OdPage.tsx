@@ -166,7 +166,7 @@ export function OdPage() {
                       </td>
                       <td>{formatTimeRange(r.slotStart, r.slotEnd)}</td>
                       <td>
-                        <Link to={`/sessions/${r.sessionId}`} className="text-link">
+                        <Link to={`/sessions/${r.sessionId}/attendance`} className="text-link">
                           #{r.sessionId}
                         </Link>
                         <span className="cell-sub">round #{r.roundId}</span>

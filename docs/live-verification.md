@@ -635,3 +635,281 @@ $ curl -s -o /dev/null -w 'UI %{http_code}\n' localhost:5173/ && curl -s -o /dev
 UI 200
 UI proxy to placement 200
 ```
+
+
+## 2026-11-28: UI rework: uploads in drive, attendance sheet
+
+Branches `feat/import-names` (import-service: optional name column, `students[]`, `schemaVersion` and
+`occurredAt` on import events), `feat/checkin-roster` (checkin-service: SHORTLIST_UPLOADED consumed,
+`round_roster`, `student_name`, `GET /rounds/{id}/roster`, `GET /sessions/{id}/attendance-sheet`) and
+`feat/frontend-uploads-in-drive` (Students panel per round, attendance sheet at
+`/sessions/:id/attendance`, "Excel import" becomes "Timetable"). Demo workbooks:
+`import-service/samples/demo/` (synthetic apart from four team members' IDs).
+
+### Test suites
+
+```text
+$ (cd checkin-service && ./mvnw verify)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.CheckinServiceApplicationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.config.ClockConfigTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.event.CheckinKafkaEndToEndTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.event.RosterKafkaEndToEndTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.AttendanceSheetMergeTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.CardUidsTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.CheckinFlowTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.OutboxRelayTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.RosterFlowTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0 -- in com.quorum.checkinservice.service.SessionMatcherTest
+[INFO] Tests run: 64, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+
+$ (cd import-service && venv/bin/python -m pytest -q)
+88 passed, 1 warning in 3.65s
+
+$ (cd frontend && npm run build)
+vite v5.4.11 building for production...
+transforming...
+✓ 64 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.72 kB │ gzip:  0.39 kB
+dist/assets/index-BoDzenQq.css   30.46 kB │ gzip:  6.33 kB
+dist/assets/index-1ZcKio--.js   271.49 kB │ gzip: 82.25 kB
+✓ built in 1.05s
+
+$ curl -s 'localhost:8084/sessions/1/attendance-sheet' | head -c 300   # changed last smoke-test line, on the original stack
+{"sessionId":1,"roundId":1,"driveId":1,"date":"2026-11-30","startTime":"09:30:00","endTime":"10:15:00","room":"Hall A","status":"SCHEDULED","counts":{"present":24,"absent":0,"notMarked":0,"total":24},"students":[{"studentId":"2300033676","name":"Nougotla Madhava Sai","onShortlist":false,"status":"PR
+```
+
+### Stack
+
+The flow was run on a **fresh compose project** (`-p quorum-clean`, new empty volumes) so the numbers
+are not mixed with older test drives. The everyday stack was stopped meanwhile and started again
+afterwards; its volumes were not touched. The clean project was removed with `down -v` at the end
+(only its own `quorum-clean_*` volumes).
+
+```text
+$ time docker compose -p quorum-clean up -d --build   # fresh project: new, empty volumes
+ Container quorum-clean-frontend-1  Starting
+ Container quorum-clean-frontend-1  Started
+
+real	1m10.347s
+user	0m0.830s
+sys	0m0.590s
+
+$ docker compose -p quorum-clean ps --format '{{.Service}}: {{.Status}}'
+attendance-service: Up 35 seconds (healthy)
+checkin-service: Up 35 seconds (healthy)
+frontend: Up 13 seconds (healthy)
+import-service: Up 35 seconds (healthy)
+kafka: Up About a minute (healthy)
+mysql: Up About a minute (healthy)
+placement-service: Up 35 seconds (healthy)
+timetable-service: Up 35 seconds (healthy)
+```
+
+### Steps 1-2: drive, rounds, session (curl)
+
+```text
+H='-H X-User-Id:coord-1 -H X-User-Role:COORDINATOR -H Content-Type:application/json'
+$ curl -s $H -d '{"companyName":"Jane Street","driveDate":"2026-11-30","startTime":"09:00","endTime":"17:00","venue":"Main Block"}' localhost:8081/drives
+{"id":1,"companyName":"Jane Street","driveDate":"2026-11-30","startTime":"09:00:00","endTime":"17:00:00","venue":"Main Block"}
+
+$ curl -s $H -d '{"name":"OA","sequence":1}' localhost:8081/drives/1/rounds
+{"id":1,"driveId":1,"name":"OA","sequence":1,"sessions":[]}
+
+$ curl -s $H -d '{"date":"2026-11-30","startTime":"09:30","endTime":"11:30","room":"C-301"}' localhost:8081/rounds/1/sessions
+{"id":1,"roundId":1,"driveId":1,"date":"2026-11-30","startTime":"09:30:00","endTime":"11:30:00","room":"C-301","status":"SCHEDULED"}
+
+$ curl -s $H -d '{"name":"Technical","sequence":2}' localhost:8081/drives/1/rounds
+{"id":2,"driveId":1,"name":"Technical","sequence":2,"sessions":[]}
+
+$ curl -s $H -d '{"name":"HR","sequence":3}' localhost:8081/drives/1/rounds
+{"id":3,"driveId":1,"name":"HR","sequence":3,"sessions":[]}
+
+$ curl -s localhost:8084/sessions/1/attendance-sheet
+{"sessionId":1,"roundId":1,"driveId":1,"date":"2026-11-30","startTime":"09:30:00","endTime":"11:30:00","room":"C-301","status":"SCHEDULED","counts":{"present":0,"absent":0,"notMarked":0,"total":0},"students":[]}
+```
+
+### Steps 3-7 in the UI (headless Chrome over the DevTools protocol, http://localhost:5173)
+
+The script types, picks files and clicks exactly as a coordinator would: Timetable page upload;
+Drives → Jane Street → round OA → Students → Upload shortlist; the session's Attendance button;
+Upload attendance file on the sheet; Absent on Steve Rogers' row; Mark all remaining present →
+the in-page confirmation → Keep as is. `[console]` lists every console error or warning per page.
+
+```text
+### stage empty
+[empty] state: No shortlist uploaded for OA yet
+[empty] link: /drives/1?shortlist=1
+[console] problems per page:
+  sheet-empty: none
+  total: 0
+### stage timetable
+[3] sidebar: Drives | Create drive | Timetable* | Clashes | OD records | Corrections | Readers & cards
+[3] tabs on page: 0
+[3] report: Quorum_Demo_Timetable.xlsx | Semester 2026-27-ODD, checked at 23:43 | Published | Total rows | 48 | Accepted | 48 | Rejected | 0 | Every row was accepted.
+[3] semesters: 2026-27-ODD Active 8 40 28 Nov, 23:43:08
+[console] problems per page:
+  timetable: none
+  total: 0
+### stage shortlist
+[4] panel before: Students
+No shortlist uploaded yet
+Download template
+Upload shortlist
+[4] report: Quorum_Demo_Shortlist.xlsx | Round 1, checked at 23:43 | Published | Hide report | Total rows | 18 | Accepted | 18 | Rejected | 0 | Every row was accepted.
+[4] panel after: Students
+18 shortlisted
+Download template
+Upload shortlist
+[4] roster rows: 18 named: 18 first three: Nougotla Madhava Sai, Vasanth Kumar Nimmiti, Pathan Amanulla Khan
+[4] session row actions: Attendance Reschedule Cancel
+[console] problems per page:
+  drive: none
+  total: 0
+### stage sheet
+[5] header: Jane Street · OA | Attendance, session #1 | Mon, 30 Nov | 09:30 – 11:30 | C-301 | Scheduled | Correct a mark
+[5] counts P/A/N/T: 0 / 0 / 18 / 18
+[5] rows: 18 statuses: {"Not marked":18}
+[6] report: Quorum_Demo_Attendance.xlsx | Session 1, checked at 23:43 | Published | Hide report | Total rows | 15 | Accepted | 15 | Rejected | 0 | Every row was accepted.
+[6] counts P/A/N/T after 1217 ms (no page reload): 15 / 0 / 3 / 18
+[6] not marked: Steve Rogers, Ron Weasley, James Bond
+[6] present sources: FILE
+[6] filter Not marked -> Steve Rogers, Ron Weasley, James Bond
+[6] search "weasley" -> 9900000008 Ron Weasley
+[6] search "99000000" -> 14 rows
+[7] Steve row: ["9900000002","Steve Rogers","Absent","Present Absent","MANUAL","28 Nov, 23:43:15 coord-1"]
+[7] same document (no reload): true
+[7] Absent pressed: true
+[7] counts P/A/N/T: 15 / 1 / 2 / 18
+[7] confirm panel: Mark 2 students present? | Only shortlisted students who are not marked yet are changed. Each one is saved as a MANUAL mark by coord-1. Students already marked present or absent keep their mark. | Keep as is | Mark 2 present
+[7] after "Keep as is" counts: 15 / 1 / 2 / 18
+[console] problems per page:
+  sheet: none
+  total: 0
+```
+
+### Step 8: clashes and OD (curl)
+
+```text
+$ curl -s 'localhost:8083/clashes?roundId=1&date=2026-11-30' | python3 -c 'import json,sys; r=json.load(sys.stdin)[0]; print(r["semester"], r["windowStart"], r["windowEnd"], len(r["clashes"]), "clashes")'
+2026-27-ODD 09:30:00 11:30:00 28 clashes
+
+$ curl -s 'localhost:8082/od?date=2026-11-30' | python3 -c 'import json,sys,collections; o=json.load(sys.stdin); print(len(o), "OD records", collections.Counter((r["status"], r["sessionId"]) for r in o), len({r["studentId"] for r in o}), "students")'
+23 OD records Counter({('GRANTED', 1): 23}) 15 students
+
+$ curl -s 'localhost:8082/od?date=2026-11-30' | python3 -c '...OD of Steve Rogers, Ron Weasley, James Bond...'
+[]
+
+$ curl -s localhost:8084/rounds/1/roster | head -c 260
+[{"studentId":"2300033676","name":"Nougotla Madhava Sai"},{"studentId":"2300039056","name":"Vasanth Kumar Nimmiti"},{"studentId":"2300039144","name":"Pathan Amanulla Khan"},{"studentId":"2300039145","name":"Pilli Bhargava Reddy"},{"studentId":"9900000001","nam
+
+$ curl -s localhost:8084/sessions/1/attendance-sheet | python3 -c '...counts and rows not present...'
+SCHEDULED {'present': 15, 'absent': 1, 'notMarked': 2, 'total': 18}
+  {"studentId": "9900000002", "name": "Steve Rogers", "onShortlist": true, "status": "ABSENT", "source": "MANUAL", "markedAt": "2026-11-28T18:13:15.803926Z", "markedBy": "coord-1"}
+  {"studentId": "9900000008", "name": "Ron Weasley", "onShortlist": true, "status": "NOT_MARKED", "source": null, "markedAt": null, "markedBy": null}
+  {"studentId": "9900000013", "name": "James Bond", "onShortlist": true, "status": "NOT_MARKED", "source": null, "markedAt": null, "markedBy": null}
+```
+
+Expected results workbook: clashes Monday 28, OD Monday 23. Both match.
+
+A marked student who is not on the shortlist (a real tap needs the session to be running now, so a
+manual mark stands in for it):
+
+```text
+$ curl -s $H -d '{"studentId":"9900000014","present":true}' localhost:8084/sessions/1/marks   # Ethan Hunt, not shortlisted
+{"markId":"5afe6b6e-1e20-42d7-b69e-cc6942bde244","sessionId":1,"roundId":1,"studentId":"9900000014","version":1,"present":true,"source":"MANUAL","markedBy":"coord-1","markedAt":"2026-11-28T18:13:35.880670044Z","createdAt":"2026-11-28T18:13:35.881815310Z"}
+divider: Marked, but not on the shortlist
+last row: 9900000014 — Not on shortlist Present Present Absent MANUAL 28 Nov, 23:43:35 coord-1
+counts P/A/N/T: 16 / 1 / 2 / 19
+problems: none
+```
+
+### Steps 9-11 and the other pages in the UI
+
+Round Technical gets `Quorum_Demo_Shortlist_WithErrors.xlsx`, round HR gets
+`Quorum_Demo_Shortlist_IdsOnly.csv` (made-up IDs, no name column), then session 1 is cancelled from the
+drive page (in-page confirm) and its sheet reopened. The cancelled sheet's buttons were re-read after
+the run because the first script still used a selector from before the layout change.
+
+```text
+### stage errors
+[9] figures: 10 / 6 / 4 (total / accepted / rejected)
+[9] rejected rows: [["8","230003905","Not 10 digits"],["9","23000390AB","Contains something other than digits"],["10","2300039145","Duplicate of an earlier row"],["11","(empty)","Empty cell"]]
+[9] panel: Students
+6 shortlisted
+Download template
+Upload shortlist
+[console] problems per page:
+  drive-errors: none
+  total: 0
+### stage idsonly
+[10] figures: 5 / 5 / 0
+[10] roster: [["9900000501","—"],["9900000502","—"],["9900000503","—"],["9900000504","—"],["9900000505","—"]]
+[10] panel: Students
+5 shortlisted, 5 without a name
+Download template
+Upload shortlist
+[console] problems per page:
+  drive-idsonly: none
+  total: 0
+### stage cancel
+[11] banner: This session is cancelled, so the sheet is read-only. Marks recorded before it was cancelled are kept and still count for OD.
+[11] status pill: Cancelled
+[11] toggles enabled: 0 of 38
+[11] toolbar buttons disabled: 
+[11] counts P/A/N/T (marks kept): 16 / 1 / 2 / 19
+[console] problems per page:
+  drive-cancel: none
+  sheet-cancelled: none
+  total: 0
+### stage pages
+[pages] drives: /drives
+[pages] redirect-imports: /timetable
+[pages] redirect-session: /sessions/1/attendance
+[pages] clashes: /clashes
+[pages] od: /od
+[pages] corrections: /corrections
+[pages] devices: /devices
+[console] problems per page:
+  drives: none
+  redirect-imports: none
+  redirect-session: none
+  clashes: none
+  od: none
+  corrections: none
+  devices: none
+  total: 0
+[11] action buttons: Upload attendance file disabled=true, Mark all remaining present disabled=true
+[11] toggles enabled: 0
+problems: none
+after cancel: 23 OD records, {'GRANTED'}
+```
+
+### Service offline
+
+`docker compose -p quorum-clean stop checkin-service`, then both pages loaded; started again afterwards.
+
+```text
+[offline] sheet: Can't reach checkin-service on port 8084. Start it and refresh.
+[offline] sidebar: checkin-service offline | Start it on port 8084
+[offline] drive students panel: Students | Shortlist unavailable | Download template | Upload shortlist | Can't reach checkin-service on port 8084. Start it and refresh. | Try again
+problems (expected: failed loads of the stopped service): 6
+```
+
+The 6 console entries are the browser's "Failed to load resource" lines for the stopped service.
+Both pages show the existing offline message.
+
+### Findings
+
+- On the everyday stack, the same flow gave 28 clashes but only 5 OD rows **attributed to the new
+  session**. The 15 students who attended do have exactly 23 OD rows on 2026-11-30, but 18 of them
+  were already granted by an older test drive ("Smoke", session 1) on the same date. attendance-service
+  keeps one OD per student, date and slot, so this is existing behaviour, not a regression. On the
+  clean stack, 23 of 23 belong to the session.
+- Shortlists uploaded **before** this release were consumed (and skipped) by checkin-service before it
+  handled SHORTLIST_UPLOADED, so those rounds have no roster: their sheets list marked students as "not
+  on shortlist". Upload the shortlist again on the round to fill the roster.
+- Names known only from the timetable file (e.g. Ethan Hunt above) are not used: names come from
+  shortlist and attendance uploads only, so he shows as "—".
